@@ -1,6 +1,8 @@
+import 'package:video_player/video_player.dart';
+
 class VideoPlayerState {
   const VideoPlayerState({
-    this.id,
+    this.preventMedia = true,
     this.initialized = false,
     this.isPlaying = false,
     this.isPaused = false,
@@ -9,9 +11,12 @@ class VideoPlayerState {
     this.aspectRatio,
     this.seeking = false,
     this.loading = false,
+    this.dragPosition = Duration.zero,
+    this.dragStartPosition = Duration.zero,
+    required this.controller,
+    this.isDragging = false,
   });
 
-  final int? id;
   final bool seeking;
   final bool initialized;
   final bool isPaused;
@@ -20,6 +25,11 @@ class VideoPlayerState {
   final Duration? duration;
   final Duration? position;
   final double? aspectRatio;
+  final VideoPlayerController controller;
+  final Duration dragPosition;
+  final bool isDragging;
+  final Duration dragStartPosition;
+  final bool preventMedia;
 
   VideoPlayerState copyWith({
     int? id,
@@ -29,20 +39,27 @@ class VideoPlayerState {
     bool? isPaused,
     Duration? duration,
     Duration? position,
+    Duration? dragPosition,
     bool? seeking,
     bool? loading,
     double? aspectRatio,
+    bool? isDragging,
+    Duration? dragStartPosition,
+    bool? preventMedia,
   }) {
     return VideoPlayerState(
-      initialized: initialized ?? this.initialized,
-      isPlaying: isPlaying ?? this.isPlaying,
-      isPaused: isPaused ?? this.isPaused,
-      duration: duration ?? this.duration,
-      position: position ?? this.position,
-      seeking: seeking ?? seeking ?? this.seeking,
-      loading: loading ?? this.loading,
-      aspectRatio: aspectRatio ?? this.aspectRatio,
-      id: id ?? this.id,
-    );
+        initialized: initialized ?? this.initialized,
+        isPlaying: isPlaying ?? this.isPlaying,
+        isPaused: isPaused ?? this.isPaused,
+        duration: duration ?? this.duration,
+        position: position ?? this.position,
+        seeking: seeking ?? seeking ?? this.seeking,
+        loading: loading ?? this.loading,
+        aspectRatio: aspectRatio ?? this.aspectRatio,
+        controller: controller,
+        preventMedia: preventMedia ?? this.preventMedia,
+        dragPosition: dragPosition ?? this.dragPosition,
+        isDragging: isDragging ?? this.isDragging,
+        dragStartPosition: dragStartPosition ?? this.dragStartPosition);
   }
 }

@@ -17,9 +17,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   ui_kit:
     path: ../../ui_kit
-  video_player:
-    path: ../../video_player
-
+  video_player: 2.9.5
 dev_dependencies:
   flutter_test:
     sdk: flutter

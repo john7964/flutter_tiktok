@@ -7,12 +7,14 @@ class DraggableBar extends StatefulWidget {
     required this.onDragUpdate,
     required this.onDragEnd,
     required this.child,
+    this.hitTestBehavior = HitTestBehavior.opaque,
   });
 
   final VoidCallback onDragStart;
   final ValueSetter<double> onDragUpdate;
   final VoidCallback onDragEnd;
   final Widget child;
+  final HitTestBehavior hitTestBehavior;
 
   @override
   State<DraggableBar> createState() => _DraggableBarState();
@@ -55,7 +57,7 @@ class _DraggableBarState extends State<DraggableBar> {
   Widget build(BuildContext context) {
     return GestureDetector(
       key: _childKey,
-      behavior: HitTestBehavior.opaque,
+      behavior: widget.hitTestBehavior,
       onLongPressStart: _handleLongPressStart,
       onLongPressMoveUpdate: _handleLongPressUpdate,
       onLongPressEnd: _handleLongPressEnd,

@@ -1,248 +1,291 @@
-import 'package:flutter/cupertino.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shorts_view/bloc/video_player_bloc.dart';
-import 'package:shorts_view/video_indicator.dart';
+import 'package:shorts_view/video_comment.dart';
+import 'package:shorts_view/video_foreground.dart';
+import 'package:shorts_view/video_seek_scope.dart';
 import 'package:shorts_view/video_wrapper.dart';
+import 'package:ui_kit/animated_off_stage.dart';
+import 'package:ui_kit/basic.dart';
 import 'package:ui_kit/media.dart';
+import 'package:ui_kit/page_view.dart';
+import 'package:ui_kit/slivers.dart';
+import 'package:ui_kit/tabs.dart';
 
 import 'bloc/video_player_events.dart';
 import 'bloc/video_player_state.dart';
-import 'core/animated_off_stage.dart';
-import 'core/draggable_contrainer.dart';
 
-class ShortsView extends StatefulWidget {
-  const ShortsView({super.key});
+final List<String> videoSource = [
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
+];
+
+const Duration _duration = Duration(milliseconds: 100);
+
+class Shorts extends StatefulWidget {
+  const Shorts({super.key, required this.onRequestShowBar});
+
+  final void Function({bool top, bool bottom}) onRequestShowBar;
 
   @override
-  State<ShortsView> createState() => _ShortsViewState();
+  State<Shorts> createState() => _ShortsState();
 }
 
-class _ShortsViewState extends State<ShortsView> {
+class _ShortsState extends State<Shorts> with TickerProviderStateMixin {
+  final double videoMinHeight = 150.0;
+  late final TabController tabController;
+  late final StreamController<double> dragStreamController;
+  bool removeBottomPadding = true;
+
+  void handleTabChange() => setState(() {});
+
+  void handleDragUpdate(double offsetRatio) => dragStreamController.add(offsetRatio);
+
+  void handleRemoveBottomPadding(bool remove) {
+    removeBottomPadding = remove;
+    setState(() {});
+  }
+
+  @override
+  void initState() {
+    tabController = TabController(length: videoSource.length, vsync: this);
+    tabController.addListener(handleTabChange);
+    dragStreamController = StreamController<double>.broadcast();
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
-    Widget child = VideoSkeleton(
-      source:
-          "https://alivc-demo-vod.aliyuncs.com/6b357371ef3c45f4a06e2536fd534380/53733986bce75cfc367d7554a47638c0-fd.mp4",
+    final Widget videos = TabBarView2(
+      pageSnapping: false,
+      physics: PageFixedDurationScrollPhysics(parent: BouncingScrollPhysics()),
+      controller: tabController,
+      axis: Axis.vertical,
+      children: List.generate(videoSource.length, (index) {
+        return PreventMedia(
+          prevent: tabController.index != index || PreventMedia.of(context),
+          child: VideoSkeleton(
+            source: videoSource[index],
+            dragStream: tabController.index == index ? dragStreamController.stream : null,
+            requestRemoveBottomPadding: handleRemoveBottomPadding,
+            onRequestShowBar: widget.onRequestShowBar,
+          ),
+        );
+      }),
     );
-    // if (Scaffold.maybeOf(context) == null) {
-    //   child = Scaffold(backgroundColor: Colors.black, body: child);
-    // }
 
-    return child;
+    final Widget drag = Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12.0),
+      child: DraggableIndicator(onChange: handleDragUpdate),
+    );
+
+    return Stack(
+      children: [
+        Align(alignment: Alignment.bottomCenter, child: drag),
+        SafeArea(top: false, bottom: removeBottomPadding, child: videos),
+      ],
+    );
   }
 
   @override
   void dispose() {
+    tabController.dispose();
     super.dispose();
   }
 }
 
 class VideoSkeleton extends StatefulWidget {
-  const VideoSkeleton({super.key, required this.source});
+  const VideoSkeleton({
+    super.key,
+    required this.source,
+    required this.dragStream,
+    required this.requestRemoveBottomPadding,
+    required this.onRequestShowBar,
+  });
 
   final String source;
+  final Stream<double>? dragStream;
+  final ValueSetter<bool> requestRemoveBottomPadding;
+  final void Function({bool top, bool bottom}) onRequestShowBar;
 
   @override
   State<VideoSkeleton> createState() => _VideoSkeletonState();
 }
 
-class _VideoSkeletonState extends State<VideoSkeleton> with SingleTickerProviderStateMixin {
-  late final AnimationController animationController;
-  bool dragged = false;
-  bool isPaused = false;
-  late AnimationStatus bottomSheetStatus;
-  late final VideoPlayerBloc videoPlayerBloc;
+const double videoMinHeightRatio = 1 / 5;
+const double videoMinWidthRatio = 1 / 2;
 
-  void handleDragChange(bool value) => setState(() => dragged = value);
-
-  void handleTapComments() => animationController.forward();
-
-  void handleTapText() => animationController.forward();
-
+class _VideoSkeletonState extends State<VideoSkeleton>
+    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
+  Bloc<dynamic, VideoPlayerState>? videoPlayerBloc;
+  StreamSubscription<double>? dragSubscription;
   @override
-  void initState() {
-    super.initState();
-    animationController = AnimationController(vsync: this, duration: Duration(milliseconds: 100));
-    bottomSheetStatus = animationController.status;
-    animationController.addListener(
-      () => setState(() => bottomSheetStatus = animationController.status),
-    );
-    videoPlayerBloc = VideoPlayerBloc(source: widget.source, preventMedia: false);
+  bool wantKeepAlive = true;
+  bool scrollable = false;
+  bool showForeground = true;
+  late final ScrollController scrollController;
+  late final StreamController<double> dragStreamController;
+  late final DraggableScrollableController dragController;
+
+  void handleScroll([AnimationStatus? status]) {
+    if (scrollController.offset == 0.0 && dragController.size == 0.0) {
+      showForeground = true;
+      scrollable = false;
+      widget.requestRemoveBottomPadding(true);
+      widget.onRequestShowBar();
+      setState(() {});
+    }
+  }
+
+  void handleShowRelatives() async {
+    showForeground = false;
+    scrollable = true;
+    setState(() {});
+    widget.onRequestShowBar(top: false);
+    // scrollController.animateTo(offset, duration: _duration, curve: Curves.easeIn);
+  }
+
+  void handleShowComment(double ratio) {
+    widget.requestRemoveBottomPadding(false);
+    showForeground = false;
+    widget.onRequestShowBar(top: false);
+    setState(() {});
+    dragController.animateTo(ratio, duration: _duration, curve: Curves.easeIn);
+    // dragController.jumpTo(1.0);
+  }
+
+  void handleDismissed() async {
+    FocusScope.of(context).unfocus();
+    await Future.wait([
+      scrollController.animateTo(0.0, duration: _duration, curve: Curves.easeOut),
+      dragController.animateTo(0.0, duration: _duration, curve: Curves.easeOut),
+    ]);
+    widget.requestRemoveBottomPadding(true);
+    widget.onRequestShowBar();
+    showForeground = true;
+    setState(() {});
+  }
+
+  void handleDragUpdate(double offsetRatio) {
+    videoPlayerBloc!.add(IndicatorDraggingEvent(offsetRatio: offsetRatio));
   }
 
   @override
-  void didChangeDependencies() {
-    videoPlayerBloc.add(PreventMediaUpdatedEvent(prevent: PreventMedia.of(context)));
-    super.didChangeDependencies();
+  void initState() {
+    dragSubscription = widget.dragStream?.listen(handleDragUpdate);
+    scrollController = ScrollController()..addListener(handleScroll);
+    dragStreamController = StreamController<double>.broadcast();
+    dragController = DraggableScrollableController();
+    dragController.addListener(handleScroll);
+
+    videoPlayerBloc = VideoPlayerBloc(source: widget.source);
+    super.initState();
+  }
+
+  @override
+  void didUpdateWidget(covariant VideoSkeleton oldWidget) {
+    if (oldWidget.source != widget.source) {
+      videoPlayerBloc?.close();
+      videoPlayerBloc = VideoPlayerBloc(source: widget.source);
+    }
+    super.didUpdateWidget(oldWidget);
   }
 
   @override
   Widget build(BuildContext context) {
-    final double topPadding = MediaQuery.of(context).padding.top;
-    final double bottomPadding = MediaQuery.of(context).viewPadding.bottom;
+    super.build(context);
 
-    final Widget backgroundWidget = LayoutBuilder(
-      builder: (context, constrains) {
+    final header = SliverLayoutBuilder(builder: (context, constrains) {
+      final double bottomPadding = MediaQuery.paddingOf(context).bottom;
+      final double topPadding = MediaQuery.paddingOf(context).top;
+      final double maxExtent = constrains.viewportMainAxisExtent;
+      final double width = constrains.crossAxisExtent;
+      final Size maxVideoSize = Size(width, maxExtent - bottomPadding);
+      final Size minVideoSize = Size(width, maxExtent * videoMinHeightRatio);
+      final double minVideoHeight = maxExtent * videoMinHeightRatio;
+      final double minExtent = minVideoHeight + topPadding;
+      final Tween<Size> sizeTween = Tween(begin: maxVideoSize, end: minVideoSize);
+
+      final Widget video = LayoutBuilder(builder: (context, constraints) {
+        final double maxOffset = maxVideoSize.height - minExtent;
+        final double offset = maxVideoSize.height - constraints.maxHeight;
+        final double scale = offset / maxOffset;
         return Column(
           children: [
-            AnimatedBuilder(
-              animation: animationController,
-              builder: (context, child) {
-                return SizedBox(height: topPadding * animationController.value);
-              },
-            ),
-            Expanded(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: animationController.reverse,
-                child: IgnorePointer(
-                  ignoring: bottomSheetStatus != AnimationStatus.dismissed,
-                  child: const VideoPlayerWrapper(),
-                ),
-              ),
-            ),
-            Container(
-              constraints: BoxConstraints(minHeight: bottomPadding),
-              alignment: Alignment.bottomCenter,
-              child: DraggableBox(
-                alignment: Alignment.topCenter,
-                controller: animationController,
-                child: Container(
-                  height: constrains.maxHeight - 200,
-                  decoration: ShapeDecoration(
-                    color: Colors.amber,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
-                    ),
-                  ),
-                  child: Column(children: [Container(height: 100, color: Colors.green)]),
-                ),
-              ),
-            ),
+            SizedBox(height: topPadding * scale),
+            Flexible(child: VideoAspectRatio(scale: scale, tween: sizeTween)),
           ],
         );
-      },
-    );
+      });
 
-    final Widget foregroundWidget = Padding(
-      padding: EdgeInsets.only(bottom: bottomPadding),
-      child: Align(
-        alignment: Alignment.bottomLeft,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+      final Widget foreground = AnimatedOpacityOffStage(
+        opacity: showForeground ? 1.0 : 0.0,
+        child: VideoForeground(
+          onTapComments: () => handleShowComment(1.0),
+          onTapText: handleShowRelatives,
+        ),
+      );
+
+      final double scrollOffset = constrains.scrollOffset;
+      final prevent = scrollOffset >= maxExtent || PreventMedia.of(context);
+      return SliverPersistentHeaderBox(
+        minExtent: minExtent,
+        maxExtent: maxExtent,
+        child: PreventMedia(
+          prevent: prevent,
+          child: Column(
             children: [
-              Expanded(child: VideoLeftInfo(onTextTap: handleTapText)),
-              SizedBox(width: 64),
-              VideoRightBar(onTapComments: handleTapComments),
+              ExpandedAlign(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: maxVideoSize.height),
+                  child: GestureDetector(
+                    onTap: handleDismissed,
+                    child: AbsorbPointer(
+                      absorbing: !showForeground,
+                      child: Stack(children: [video, foreground]),
+                    ),
+                  ),
+                ),
+              ),
+              CommentsSheet(
+                controller: dragController,
+                height: maxExtent - minExtent,
+                expandedHeight: maxExtent - topPadding,
+              ),
             ],
           ),
         ),
-      ),
-    );
+      );
+    });
 
-    final Widget indicator = Offstage(
-      offstage: bottomSheetStatus != AnimationStatus.dismissed,
-      child: BlocBuilder<Bloc<dynamic, VideoPlayerState>, VideoPlayerState>(
-        bloc: videoPlayerBloc,
-        builder: (context, state) {
-          return VideoIndicator(
-            dragging: dragged,
-            onDragChange: handleDragChange,
-            playerState: state,
+    return BlocProvider.value(
+      value: videoPlayerBloc!,
+      child: NestedScrollView(
+        controller: scrollController,
+        physics: scrollable ? ClampingScrollPhysics() : NeverScrollableScrollPhysics(),
+        headerSliverBuilder: (context, scrolled) => [header],
+        body: Builder(builder: (context) {
+          return CustomScrollView(
+            physics: scrollable ? null : NeverScrollableScrollPhysics(),
+            slivers: [
+              SliverAppBar(pinned: true, title: Text("data")),
+              SliverToBoxAdapter(child: Container(height: 1000, color: Colors.white)),
+            ],
           );
-        },
-      ),
-    );
-
-    return BlocProvider<Bloc<dynamic, VideoPlayerState>>(
-      create: (context) => videoPlayerBloc,
-      child: Stack(
-        children: [
-          backgroundWidget,
-          AnimatedOpacityOffStage(
-            opacity: bottomSheetStatus == AnimationStatus.dismissed && !dragged ? 1.0 : 0.0,
-            child: SafeArea(top: false, child: foregroundWidget),
-          ),
-          Positioned(bottom: bottomPadding, left: 16, right: 16, child: indicator),
-        ],
+        }),
       ),
     );
   }
 
   @override
   void dispose() {
-    videoPlayerBloc.close();
+    videoPlayerBloc?.close();
+    dragSubscription?.cancel();
     super.dispose();
-  }
-}
-
-class VideoLeftInfo extends StatelessWidget {
-  const VideoLeftInfo({super.key, required this.onTextTap});
-
-  final VoidCallback onTextTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTextTap,
-      child: DefaultTextStyle(
-        style: TextStyle(color: Colors.white),
-        child: Text(
-          "asdasdasdasdssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssasd",
-        ),
-      ),
-    );
-  }
-}
-
-class VideoRightBar extends StatelessWidget {
-  const VideoRightBar({super.key, required this.onTapComments});
-
-  final VoidCallback onTapComments;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconTheme(
-      data: IconThemeData(color: Colors.white, size: 30),
-      child: DefaultTextStyle(
-        style: TextStyle(color: Colors.white, fontSize: 12),
-        child: UnconstrainedBox(
-          child: Wrap(
-            direction: Axis.vertical,
-            spacing: 24,
-            children: [
-              Column(
-                children: [Icon(CupertinoIcons.heart_fill), SizedBox(height: 4), Text("222.9K")],
-              ),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: onTapComments,
-                child: Column(
-                  children: [
-                    Icon(CupertinoIcons.chat_bubble_text_fill),
-                    SizedBox(height: 4),
-                    Text("222.9K"),
-                  ],
-                ),
-              ),
-              Column(
-                children: [Icon(Icons.bookmark_add_rounded), SizedBox(height: 4), Text("222.9K")],
-              ),
-              Column(
-                children: [
-                  Icon(CupertinoIcons.reply_thick_solid),
-                  SizedBox(height: 4),
-                  Text("222.9K"),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

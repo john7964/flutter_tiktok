@@ -10,8 +10,12 @@ void main() async {
 
   await SystemChrome.setEnabledSystemUIMode(
     SystemUiMode.edgeToEdge,
-    overlays: [SystemUiOverlay.top],
+    // overlays: [SystemUiOverlay.top],
   );
+
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
 
   runApp(const App());
 }

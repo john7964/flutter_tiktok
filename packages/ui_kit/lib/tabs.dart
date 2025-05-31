@@ -1,8 +1,3 @@
-// Copyright 2014 The Flutter Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
-
-/// @docImport 'no_splash.dart';
 library;
 
 import 'dart:ui' show SemanticsRole;
@@ -10,6 +5,7 @@ import 'dart:ui' show SemanticsRole;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
+import 'package:ui_kit/page_view.dart';
 
 /// A page view that displays the widget which corresponds to the currently
 /// selected tab.
@@ -37,7 +33,13 @@ class TabBarView2 extends StatefulWidget {
     this.dragStartBehavior = DragStartBehavior.start,
     this.viewportFraction = 1.0,
     this.clipBehavior = Clip.hardEdge,
+    this.axis = Axis.horizontal,
+    this.pageSnapping = true,
   });
+
+  final bool pageSnapping;
+
+  final Axis axis;
 
   /// This widget's selection and animation state.
   ///
@@ -55,9 +57,6 @@ class TabBarView2 extends StatefulWidget {
   ///
   /// For example, determines how the page view continues to animate after the
   /// user stops dragging the page view.
-  ///
-  /// The physics are modified to snap to page boundaries using
-  /// [PageScrollPhysics] prior to being used.
   ///
   /// Defaults to matching platform conventions.
   final ScrollPhysics? physics;
@@ -332,20 +331,52 @@ class _TabBarView2State extends State<TabBarView2> {
   @override
   Widget build(BuildContext context) {
     assert(_debugScheduleCheckHasValidChildrenCount());
-
     return NotificationListener<ScrollNotification>(
       onNotification: _handleScrollNotification,
-      child: PageView(
+      child: PageView2(
+        pageSnapping: widget.pageSnapping,
+        scrollDirection: widget.axis,
         dragStartBehavior: widget.dragStartBehavior,
         clipBehavior: widget.clipBehavior,
         controller: _pageController,
         hitTestBehavior: HitTestBehavior.translucent,
-        physics:
-            widget.physics == null
-                ? const PageScrollPhysics().applyTo(const ClampingScrollPhysics())
-                : const PageScrollPhysics().applyTo(widget.physics),
+        physics: widget.physics ?? const ClampingScrollPhysics(),
         children: _childrenWithKey,
       ),
     );
+  }
+}
+
+class TabController2 extends TabController {
+  TabController2({
+    required super.length,
+    required super.vsync,
+    super.initialIndex,
+    super.animationDuration,
+  });
+
+  final Set<VoidCallback> _indexListeners = <VoidCallback>{};
+
+  @override
+  set index(int value) {
+    super.index = value;
+    for (final VoidCallback listener in _indexListeners) {
+      listener();
+    }
+  }
+
+  @override
+  void animateTo(int value, {Duration? duration, Curve curve = Curves.easeInQuint}) {
+    super.animateTo(value, duration: duration, curve: curve);
+  }
+
+  bool addIndexListener(VoidCallback listener) => _indexListeners.add(listener);
+
+  bool removeIndexListener(VoidCallback listener) => _indexListeners.remove(listener);
+
+  @override
+  void dispose() {
+    _indexListeners.clear();
+    super.dispose();
   }
 }

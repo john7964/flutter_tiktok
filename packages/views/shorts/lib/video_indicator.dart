@@ -1,73 +1,43 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shorts_view/core/duration.dart';
+import 'package:ui_kit/animated_off_stage.dart';
 
-import 'bloc/video_player_events.dart';
 import 'bloc/video_player_state.dart';
-import 'core/animated_off_stage.dart';
-import 'core/draggable_builder.dart';
 
-class VideoIndicator extends StatefulWidget {
-  const VideoIndicator({
-    super.key,
-    required this.dragging,
-    required this.onDragChange,
-    required this.playerState,
-  });
+class VideoIndicator extends StatelessWidget {
+  const VideoIndicator({super.key, required this.playerState});
 
-  final bool dragging;
-  final void Function(bool dragged) onDragChange;
   final VideoPlayerState playerState;
 
-  @override
-  State<VideoIndicator> createState() => _VideoIndicatorState();
-}
-
-class _VideoIndicatorState extends State<VideoIndicator> {
-  late double dragRatio = 0.0;
-
   double get videoRatio {
-    final duration = widget.playerState.duration?.inMilliseconds;
+    final duration = playerState.duration?.inMilliseconds;
     if (duration == null || duration == 0) {
       return 0.0;
     }
-    return (widget.playerState.position?.inMilliseconds ?? 0) / duration;
+    return (playerState.position?.inMilliseconds ?? 0) / duration;
   }
 
-  Duration get dragDuration {
-    return Duration(
-      milliseconds: ((widget.playerState.duration?.inMilliseconds ?? 0) * dragRatio).toInt(),
-    );
-  }
+  double? get dragRatio {
+    final duration = playerState.duration?.inMilliseconds;
 
-  void _handleDragStart() {
-    widget.onDragChange(true);
-    dragRatio = videoRatio;
-  }
-
-  void _handleDragUpdate(double offsetRatio) {
-    setState(() => dragRatio = max(0, dragRatio + offsetRatio));
-  }
-
-  void _handleDragEnd() async {
-    widget.onDragChange(false);
-    context.read<Bloc<dynamic, VideoPlayerState>>().add(SeekToEvent(dragDuration));
+    if (duration != null && duration != 0) {
+      return (playerState.dragPosition.inMilliseconds) / duration;
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    bool showDragBar = widget.dragging;
-    bool showLoading = !showDragBar && widget.playerState.loading && !widget.playerState.seeking;
-    bool showProgressBar = !showLoading;
-    bool highlightProgressBar =
-        showProgressBar && (!widget.playerState.isPlaying || widget.dragging);
+    bool dragging = playerState.isDragging;
 
-    double barHeight =
-        widget.dragging
-            ? 8
-            : highlightProgressBar
+    bool showDragBar = dragging;
+    bool showLoading = !showDragBar && playerState.loading && !playerState.seeking;
+    bool showProgressBar = !showLoading;
+    bool highlightProgressBar = showProgressBar && (!playerState.isPlaying || dragging);
+
+    double barHeight = dragging
+        ? 8
+        : highlightProgressBar
             ? 4
             : 2;
 
@@ -93,7 +63,7 @@ class _VideoIndicatorState extends State<VideoIndicator> {
             ),
             Offstage(
               offstage: !showDragBar,
-              child: IndicatorBar(ratio: dragRatio, color: Colors.white.withAlpha(100)),
+              child: IndicatorBar(ratio: dragRatio ?? 0.0, color: Colors.white.withAlpha(100)),
             ),
           ],
         ),
@@ -109,38 +79,34 @@ class _VideoIndicatorState extends State<VideoIndicator> {
 
     Widget time = AnimatedOpacityOffStage(
       duration: Duration(milliseconds: 200),
-      opacity: widget.dragging ? 1.0 : 0.0,
+      opacity: dragging ? 1.0 : 0.0,
       child: AnimatedContainer(
         duration: Duration(milliseconds: 200),
-        padding: EdgeInsets.only(bottom: widget.dragging ? 60 : 20),
+        padding: EdgeInsets.only(bottom: dragging ? 60 : 20),
         child: RichText(
           text: TextSpan(
             style: TextStyle(fontSize: 18),
-            text: "${dragDuration.formattedString} / ",
-            children: [TextSpan(text: widget.playerState.duration?.formattedString)],
+            text: "${playerState.dragPosition.formattedString} / ",
+            children: [TextSpan(text: playerState.duration?.formattedString)],
           ),
         ),
       ),
     );
 
-    return DraggableBar(
-      onDragStart: _handleDragStart,
-      onDragUpdate: _handleDragUpdate,
-      onDragEnd: _handleDragEnd,
-      child: Column(
-        children: [
-          SizedBox(height: 10),
-          time,
-          SizedBox(
-            height: barHeight + 2,
-            child: Stack(
-              alignment: Alignment.centerLeft,
-              children: [bar, Positioned(left: 20, child: dot)],
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(height: 10),
+        time,
+        SizedBox(
+          height: barHeight + 2,
+          child: Stack(
+            alignment: Alignment.centerLeft,
+            children: [bar, Positioned(left: 20, child: dot)],
           ),
-          SizedBox(height: 4),
-        ],
-      ),
+        ),
+        SizedBox(height: 4),
+      ],
     );
   }
 }
@@ -152,6 +118,7 @@ class IndicatorBar extends StatelessWidget {
     this.color = Colors.white,
     this.duration = const Duration(milliseconds: 0),
   });
+
   final double ratio;
   final Color color;
   final Duration duration;

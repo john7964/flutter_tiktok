@@ -1,21 +1,75 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shorts_view/bloc/video_player_events.dart';
+import 'package:ui_kit/media.dart';
+import 'package:video_player/video_player.dart';
 
-import 'bloc/video_player_events.dart';
 import 'bloc/video_player_state.dart';
-import 'core/animated_off_stage.dart';
 
-class VideoPlayerWrapper extends StatelessWidget {
-  const VideoPlayerWrapper({super.key});
+class VideoAspectRatio extends StatefulWidget {
+  const VideoAspectRatio({super.key, required this.tween, required this.scale});
 
-  void handleTapVideo(BuildContext context) {
-    final bloc = context.read<Bloc<dynamic, VideoPlayerState>>();
-    bloc.add(VideoPauseEvent(pause: !bloc.state.isPaused));
+  final Tween<Size> tween;
+  final double scale;
+
+  @override
+  State<VideoAspectRatio> createState() => _VideoAspectRatioState();
+}
+
+class _VideoAspectRatioState extends State<VideoAspectRatio> {
+  Size _applyAspectRatio(BoxConstraints constraints, double aspectRatio) {
+    if (constraints.isTight) {
+      return constraints.smallest;
+    }
+
+    double width = constraints.maxWidth;
+    double height;
+
+    if (width.isFinite) {
+      height = width / aspectRatio;
+    } else {
+      height = constraints.maxHeight;
+      width = height * aspectRatio;
+    }
+
+    if (width > constraints.maxWidth) {
+      width = constraints.maxWidth;
+      height = width / aspectRatio;
+    }
+
+    if (height > constraints.maxHeight) {
+      height = constraints.maxHeight;
+      width = height * aspectRatio;
+    }
+
+    if (width < constraints.minWidth) {
+      width = constraints.minWidth;
+      height = width / aspectRatio;
+    }
+
+    if (height < constraints.minHeight) {
+      height = constraints.minHeight;
+      width = height * aspectRatio;
+    }
+
+    return constraints.constrain(Size(width, height));
   }
 
-  void handleViewCreate(BuildContext context, int id) {
-    final bloc = context.read<Bloc<dynamic, VideoPlayerState>>();
-    bloc.add(ViewIdUpdatedEvent(id));
+  BoxConstraints get beginConstraints => BoxConstraints(
+        maxHeight: widget.tween.begin!.height,
+        maxWidth: widget.tween.begin!.width,
+      );
+
+  BoxConstraints get endConstraints => BoxConstraints(
+        maxHeight: widget.tween.end!.height,
+        maxWidth: widget.tween.end!.width,
+      );
+
+  @override
+  void didChangeDependencies() {
+    final bool prevent = PreventMedia.of(context);
+    context.read<Bloc<dynamic, VideoPlayerState>>().add(PreventMediaUpdatedEvent(prevent: prevent));
+    super.didChangeDependencies();
   }
 
   @override
@@ -23,89 +77,63 @@ class VideoPlayerWrapper extends StatelessWidget {
     return BlocBuilder<Bloc<dynamic, VideoPlayerState>, VideoPlayerState>(
       buildWhen: (previous, current) => current.initialized,
       builder: (context, state) {
-        print("textureid: ${state.id}");
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => handleTapVideo(context),
-          child: ColoredBox(
-            color: Colors.black,
-            child: Center(
-              child: Stack(
-                children: [
-                  if (state.initialized && state.aspectRatio != null)
-                    Container(
-                      color: Colors.amber,
-                      child: AspectRatio(
-                        aspectRatio: state.aspectRatio!,
-                        child: Texture(
-                          textureId: state.id!,
-                          filterQuality: FilterQuality.high,
-                        ),
-                      ),
-                    ),
-                  Positioned.fill(
-                    child: Center(child: PlayButton(isPause: !state.isPlaying && state.isPaused)),
-                  ),
-                ],
-              ),
+        if (!state.initialized) {
+          return Center(child: CircularProgressIndicator());
+        }
+
+        final double aspectRatio = state.aspectRatio!;
+        final player = AspectRatio(aspectRatio: aspectRatio, child: VideoPlayer(state.controller));
+        final Size beginSize = _applyAspectRatio(beginConstraints, aspectRatio);
+        final Size endSize = _applyAspectRatio(endConstraints, aspectRatio);
+        final Size? size = Size.lerp(beginSize, endSize, widget.scale);
+        return LayoutBuilder(builder: (context, constraints) {
+          return ColoredBox(
+            color: Colors.white12,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: size!.height,
+                    maxWidth: size.width,
+                  ).enforce(constraints),
+                  child: player,
+                ),
+              ],
             ),
-          ),
-        );
+          );
+        });
       },
     );
   }
 }
 
-class PlayButton extends StatefulWidget {
-  const PlayButton({super.key, required this.isPause});
-
-  final bool isPause;
-
-  @override
-  State<PlayButton> createState() => _PlayButtonState();
-}
-
-class _PlayButtonState extends State<PlayButton> with SingleTickerProviderStateMixin {
-  late AnimationController controller = AnimationController(
-    vsync: this,
-    duration: Duration(milliseconds: 100),
-  );
-
-  @override
-  void initState() {
-    controller = AnimationController(vsync: this, duration: Duration(milliseconds: 100));
-    if (widget.isPause) {
-      controller.forward(from: 0);
-    }
-    super.initState();
-  }
-
-  @override
-  void didUpdateWidget(covariant PlayButton oldWidget) {
-    widget.isPause ? controller.forward(from: controller.value) : controller.value = 0.0;
-    super.didUpdateWidget(oldWidget);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedOpacityOffStage(
-      opacity: widget.isPause ? 0.3 : 0,
-      child: AnimatedBuilder(
-        animation: controller,
-        builder: (context, child) {
-          return Icon(
-            Icons.play_arrow_rounded,
-            color: Colors.white,
-            size: (120 * (1 - controller.value)) + 110,
-          );
-        },
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-}
+// Expanded(
+//   child: UnconstrainedBox(
+//     alignment: Alignment.topCenter,
+//     child: OutlinedButton(
+//       style: ButtonStyle(
+//         shape: WidgetStatePropertyAll(
+//           RoundedRectangleBorder(
+//             side: BorderSide(color: Colors.amber, width: 5),
+//             borderRadius: BorderRadius.circular(20),
+//           ),
+//         ),
+//         iconColor: WidgetStatePropertyAll(Colors.white),
+//         iconSize: WidgetStatePropertyAll(24),
+//         padding: WidgetStatePropertyAll(
+//           EdgeInsets.only(left: 6, right: 10, top: 2, bottom: 2),
+//         ),
+//         minimumSize: WidgetStatePropertyAll(Size(20, 20)),
+//         maximumSize: WidgetStatePropertyAll(Size(200, 200)),
+//         textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 12)),
+//         foregroundColor: WidgetStatePropertyAll(Colors.white),
+//       ),
+//       onPressed: () => toggleFullScreen(orientation),
+//       child: Row(
+//         mainAxisSize: MainAxisSize.min,
+//         children: [Icon(Icons.fullscreen), Text("全屏观看")],
+//       ),
+//     ),
+//   ),
+// )

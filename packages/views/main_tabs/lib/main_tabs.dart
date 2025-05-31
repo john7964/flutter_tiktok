@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:main_tabs_view/home_tabs.dart';
 import 'package:ui_kit/media.dart';
 
@@ -40,7 +41,13 @@ class MainTabsView extends StatefulWidget {
 
 class _MainTabsViewState<T extends StatefulWidget> extends State<MainTabsView> {
   int index = 0;
-  double barHeight = 40;
+  double barHeight = 46;
+
+  @override
+  void initState() {
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(statusBarColor: Colors.white));
+    super.initState();
+  }
 
   void handleIndexChange(int index) {
     setState(() {
@@ -50,12 +57,6 @@ class _MainTabsViewState<T extends StatefulWidget> extends State<MainTabsView> {
 
   @override
   Widget build(BuildContext context) {
-    final mediaQueryData = MediaQuery.of(context);
-    final newData = mediaQueryData.copyWith(
-      viewPadding: mediaQueryData.viewPadding.add(EdgeInsets.only(bottom: barHeight)) as EdgeInsets,
-      padding: mediaQueryData.padding.add(EdgeInsets.only(bottom: barHeight)) as EdgeInsets,
-    );
-
     Widget home = PreventMedia(
       prevent: index != 0 || PreventMedia.of(context),
       child: HomeView<T>(
@@ -73,22 +74,39 @@ class _MainTabsViewState<T extends StatefulWidget> extends State<MainTabsView> {
         ),
         buttonTheme: ButtonThemeData(buttonColor: Colors.white),
       ),
-      child: Stack(
-        alignment: Alignment.bottomLeft,
-        children: [
-          GestureDetector(
-            onTapDown: (details) => print("onTapDown2: $details"),
-            behavior: HitTestBehavior.translucent,
-            child: BottomBar(index: index, onIndexChange: handleIndexChange),
-          ),
-          MediaQuery(
-            data: newData,
-            child: IndexedStack(
-              index: index,
-              children: [home, widget.mall, widget.message, widget.me],
-            ),
-          ),
-        ],
+      child: ColoredBox(
+        color: Colors.black,
+        child: OrientationBuilder(
+          builder: (context, orientation) {
+            MediaQueryData media = MediaQuery.of(context);
+            if (orientation == Orientation.portrait) {
+              media = media.copyWith(
+                padding: media.padding.add(EdgeInsets.only(bottom: barHeight)) as EdgeInsets,
+              );
+            }
+            return Stack(
+              alignment: Alignment.bottomLeft,
+              children: [
+                Offstage(
+                  offstage: orientation == Orientation.landscape,
+                  child: BottomBar(index: index, onIndexChange: handleIndexChange),
+                ),
+                MediaQuery(
+                  data: media,
+                  child: IndexedStack(
+                    index: index,
+                    children: [
+                      home,
+                      SafeArea(top: false, child: widget.mall),
+                      SafeArea(top: false, child: widget.message),
+                      SafeArea(top: false, child: widget.me),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -96,27 +114,42 @@ class _MainTabsViewState<T extends StatefulWidget> extends State<MainTabsView> {
 
 class BottomBar extends StatelessWidget {
   const BottomBar({super.key, required this.index, required this.onIndexChange});
+
   final int index;
   final void Function(int index) onIndexChange;
+  final List<String> titles = const ["首页", "朋友", "消息", "我"];
 
   @override
   Widget build(BuildContext context) {
-    print(
-      "MediaQuery.of(context).viewPadding.bottom: ${MediaQuery.of(context).viewPadding.bottom}",
-    );
-
-    print("MediaQuery.of(context).viewPadding.top: ${MediaQuery.of(context).viewPadding.top}");
     return Container(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewPadding.bottom),
       child: SizedBox(
-        height: 40,
+        height: 46,
         child: Row(
-          children: [
-            Expanded(child: TextButton(onPressed: () => onIndexChange(0), child: Text("1"))),
-            Expanded(child: TextButton(onPressed: () => onIndexChange(1), child: Text("2"))),
-            Expanded(child: TextButton(onPressed: () => onIndexChange(2), child: Text("3"))),
-            Expanded(child: TextButton(onPressed: () => onIndexChange(3), child: Text("4"))),
-          ],
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: List.generate(titles.length, (index) {
+            final foregroundColor = WidgetStatePropertyAll<Color>(
+              this.index == index ? Colors.white : Colors.white.withAlpha(180),
+            );
+            return Expanded(
+              child: LayoutBuilder(
+                builder: (context, constrains) {
+                  print(constrains);
+                  return TextButton(
+                    onPressed: () => onIndexChange(index),
+                    style: ButtonStyle(
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      foregroundColor: foregroundColor,
+                      textStyle: WidgetStatePropertyAll(
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                    ),
+                    child: Text(titles[index]),
+                  );
+                },
+              ),
+            );
+          }),
         ),
       ),
     );

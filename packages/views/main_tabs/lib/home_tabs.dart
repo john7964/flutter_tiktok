@@ -1,4 +1,7 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:main_tabs_view/scaffold.dart';
+import 'package:ui_kit/animated_off_stage.dart';
 import 'package:ui_kit/media.dart';
 import 'package:ui_kit/tabs.dart';
 
@@ -28,58 +31,72 @@ class HomeView<T extends StatefulWidget> extends StatefulWidget {
 
 class HomeViewState<T extends StatefulWidget> extends State<HomeView<T>>
     with SingleTickerProviderStateMixin {
-  int index = 2;
-  late final TabController controller = TabController(length: 3, vsync: this)..index = index;
+  late final TabController2 controller = TabController2(length: 3, vsync: this)..index = 2;
 
   @override
   void initState() {
-    controller.addListener(() {
-      setState(() => index = controller.index);
-    });
+    controller.addIndexListener(() => setState(() {}));
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
-    final mediaQueryData = MediaQuery.of(context);
-    final newData = mediaQueryData.copyWith(
-      viewPadding: mediaQueryData.viewPadding.add(EdgeInsets.only(top: 40)) as EdgeInsets,
+    PreferredSizeWidget? appBar = AppBar(
+      toolbarHeight: 44,
+      forceMaterialTransparency: true,
+      backgroundColor: Colors.transparent,
+      actions: [
+        IconButton(
+          icon: Icon(CupertinoIcons.search, size: 26, color: Colors.white.withAlpha(230)),
+          onPressed: () {},
+        ),
+      ],
+      title: TabBar(
+        controller: controller,
+        labelColor: Colors.white.withAlpha(230),
+        unselectedLabelColor: Colors.white.withAlpha(180),
+        tabAlignment: TabAlignment.center,
+        dividerHeight: 0.0,
+        indicatorWeight: 2,
+        indicatorColor: Colors.white,
+        labelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        tabs: [Text("关注"), Text("朋友"), Text("推荐")],
+      ),
     );
 
-    return Stack(
-      children: [
-        MediaQuery(
-          data: newData,
-          child: TabBarView2(
+    return TransparencyScaffold(
+      resizeToAvoidBottomInset: false,
+      extendBodyBehindAppBar: true,
+      drawer: SizedBox(width: 300),
+      body: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          TabBarView2(
             controller: controller,
             children: [
               PreventMedia(
-                prevent: index != 0 || PreventMedia.of(context),
+                prevent: controller.index != 0 || PreventMedia.of(context),
                 child: KeepAliveShorts(child: widget.subscribedShorts),
               ),
               PreventMedia(
-                prevent: index != 1 || PreventMedia.of(context),
+                prevent: controller.index != 1 || PreventMedia.of(context),
                 child: KeepAliveShorts(child: widget.friendShorts),
               ),
               PreventMedia(
-                prevent: index != 2 || PreventMedia.of(context),
+                prevent: controller.index != 2 || PreventMedia.of(context),
                 child: KeepAliveShorts(child: widget.recommendedShorts),
               ),
             ],
           ),
-        ),
-        Material(
-          type: MaterialType.transparency,
-          color: Colors.black,
-          child: SafeArea(
-            bottom: false,
-            child: SizedBox(
-              height: 40,
-              child: TabBar(controller: controller, tabs: [Text("1"), Text("2"), Text("3")]),
-            ),
+          AnimatedOpacityOffStage(
+            opacity:
+                widget.showTabBar && MediaQuery.orientationOf(context) == Orientation.portrait
+                    ? 1.0
+                    : 0.0,
+            child: appBar,
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

@@ -6,6 +6,9 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(themeMode: ThemeMode.light, home: LoginIntegration());
+    return MaterialApp(
+      theme: ThemeData(
+      ),
+        themeMode: ThemeMode.dark, home: LoginIntegration());
   }
 }

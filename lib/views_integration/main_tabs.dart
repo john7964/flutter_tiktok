@@ -14,22 +14,32 @@ class MainTabsViewIntegration extends StatefulWidget {
 }
 
 class MainTabsViewIntegrationState extends State<MainTabsViewIntegration> with RouteAware {
+  bool showTopBar = true;
+  bool showBottomBar = true;
+
+  void handleShowBar({bool top = true, bool bottom = true}) {
+    showTopBar = top;
+    showBottomBar = bottom;
+    setState(() {});
+  }
+
   void handleTapCreate(BuildContext context) {
     Navigator.of(context).push(CreateShortView.route());
   }
 
   @override
   Widget build(BuildContext context) {
+    final Widget shorts = ShortsIntegration(onRequestShowBar: handleShowBar);
     return MainTabsView(
-      showBottomBar: true,
-      showTopBar: true,
+      showBottomBar: showBottomBar,
+      showTopBar: showTopBar,
       mall: MallViewIntegration(),
       message: MessageViewIntegration(),
       me: MeViewIntegration(),
       onPressCreate: (_) => handleTapCreate(context),
-      recommendedShorts: ShortsIntegration(),
-      friendShorts: ShortsIntegration(),
-      subscribedShorts: ShortsIntegration(),
+      recommendedShorts: shorts,
+      friendShorts: shorts,
+      subscribedShorts: shorts,
     );
   }
 }

@@ -4,7 +4,9 @@ import 'package:ui_kit/media.dart';
 import 'package:ui_kit/root_navigator.dart';
 
 class ShortsIntegration extends StatefulWidget {
-  const ShortsIntegration({super.key});
+  const ShortsIntegration({super.key, required this.onRequestShowBar});
+
+  final void Function({bool top, bool bottom}) onRequestShowBar;
 
   @override
   State<ShortsIntegration> createState() => _ShortsIntegrationState();
@@ -52,7 +54,10 @@ class _ShortsIntegrationState extends State<ShortsIntegration> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
-    return PreventMedia(prevent: preventMedia || PreventMedia.of(context), child: ShortsView());
+    return PreventMedia(
+      prevent: preventMedia || PreventMedia.of(context),
+      child: Shorts(onRequestShowBar: widget.onRequestShowBar),
+    );
   }
 
   @override

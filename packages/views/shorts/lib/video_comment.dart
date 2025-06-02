@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -8,13 +9,11 @@ import 'core/draggable_contrainer.dart';
 class VideoCommentsList extends StatefulWidget {
   const VideoCommentsList({
     super.key,
-    required this.controller,
     this.physics,
     required this.expanded,
     required this.onExpandedChange,
   });
 
-  final ScrollController controller;
   final ScrollPhysics? physics;
   final bool expanded;
   final ValueSetter<bool> onExpandedChange;
@@ -26,17 +25,17 @@ class VideoCommentsList extends StatefulWidget {
 class _VideoCommentsListState extends State<VideoCommentsList> {
   final List<GlobalKey> keys = List.generate(20, (index) => GlobalKey());
   final FocusNode focusNode = FocusNode();
-
-  ScrollController get scrollController => widget.controller;
+  final ScrollController _defaultController = ScrollController();
+  late ScrollController controller;
 
   GlobalKey? _lastFocusedKey;
   double _lastScrollOffset = 0.0;
 
   void handleFocusChange() {
     if (focusNode.hasFocus) {
-      _lastScrollOffset = scrollController.offset;
+      _lastScrollOffset = controller.offset;
     } else {
-      scrollController.animateTo(
+      controller.animateTo(
         _lastScrollOffset,
         duration: Duration(milliseconds: 150),
         curve: Curves.easeOut,
@@ -45,13 +44,9 @@ class _VideoCommentsListState extends State<VideoCommentsList> {
   }
 
   @override
-  void initState() {
-    // focusNode.addListener(handleFocusChange);
-    super.initState();
-  }
-
-  @override
   void didChangeDependencies() {
+    controller = PrimaryScrollController.maybeOf(context) ?? _defaultController;
+    super.didChangeDependencies();
     if (focusNode.hasFocus) {
       final RenderSliver? renderSliver =
           _lastFocusedKey?.currentContext?.findRenderObject() as RenderSliver?;
@@ -59,7 +54,7 @@ class _VideoCommentsListState extends State<VideoCommentsList> {
       final double maxPaintExtent = renderSliver?.geometry?.maxPaintExtent ?? 0.0;
       final double scrollOffset = maxPaintExtent - remainingExtent;
       if (scrollOffset > 0) {
-        scrollController.jumpTo(scrollController.offset + scrollOffset);
+        controller.jumpTo(controller.offset + scrollOffset);
       }
     }
 
@@ -76,7 +71,7 @@ class _VideoCommentsListState extends State<VideoCommentsList> {
         FocusScope.of(context).unfocus();
       },
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 8),
+        padding: EdgeInsets.symmetric(horizontal: 16),
         color: Colors.white,
         child: Column(
           children: [
@@ -96,7 +91,7 @@ class _VideoCommentsListState extends State<VideoCommentsList> {
             Expanded(
               child: CustomScrollView(
                 primary: false,
-                controller: scrollController,
+                controller: controller,
                 physics:
                     widget.physics?.applyTo(BouncingScrollPhysics()) ?? BouncingScrollPhysics(),
                 slivers: [
@@ -109,9 +104,9 @@ class _VideoCommentsListState extends State<VideoCommentsList> {
                           focusNode.requestFocus();
                           _lastFocusedKey = key;
                         },
-                        child: SizedBox(
-                          height: 100,
-                          child: Center(child: Text("${key.hashCode}")),
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 20.0),
+                          child: Comment(),
                         ),
                       ),
                     );
@@ -157,7 +152,7 @@ class CommentsSheet extends StatefulWidget {
   State<CommentsSheet> createState() => _CommentsSheetState();
 }
 
-const Duration _duration = Duration(milliseconds: 100);
+const Duration _duration = Duration(milliseconds: 120);
 
 class _CommentsSheetState extends State<CommentsSheet> with SingleTickerProviderStateMixin {
   late bool expanded = false;
@@ -192,7 +187,6 @@ class _CommentsSheetState extends State<CommentsSheet> with SingleTickerProvider
             initialChildSize: 0.0,
             minChildSize: 0.0,
             snap: true,
-            snapSizes: [0.0, 1.0],
             snapAnimationDuration: _duration * 0.64,
             builder: (context, controller) {
               return ClipRect(
@@ -201,10 +195,15 @@ class _CommentsSheetState extends State<CommentsSheet> with SingleTickerProvider
                   alignment: Alignment.topCenter,
                   child: DraggableBox(
                     controller: widget.controller,
-                    child: VideoCommentsList(
+                    child: PrimaryScrollController(
                       controller: controller,
-                      expanded: expanded,
-                      onExpandedChange: handleCommentsExpand,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+                        child: VideoCommentsList(
+                          expanded: expanded,
+                          onExpandedChange: handleCommentsExpand,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -213,6 +212,46 @@ class _CommentsSheetState extends State<CommentsSheet> with SingleTickerProvider
           ),
         );
       },
+    );
+  }
+}
+
+class Comment extends StatelessWidget {
+  const Comment({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.all(Radius.circular(20)),
+          child: Container(height: 36, width: 36, color: Colors.amber),
+        ),
+        SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "胰液素风",
+                maxLines: 1,
+                style: TextStyle(color: Color(0xFFA4A6A8), fontSize: 13),
+              ),
+              SizedBox(height: 4),
+              Text("不敢吹其他人", style: TextStyle(
+                  fontFamilyFallback: ["PingFang SC"],
+                  fontSize: 14.5,fontWeight: FontWeight.w400,color: Color(0xFF030300))),
+              SizedBox(height: 4),
+              Row(children: [
+                Text("4-24 内蒙古", style: TextStyle(color: Color(0xFFA4A6A8), fontSize: 13)),
+                Spacer(),
+                Icon(CupertinoIcons.heart, size: 16)
+              ])
+            ],
+          ),
+        )
+      ],
     );
   }
 }

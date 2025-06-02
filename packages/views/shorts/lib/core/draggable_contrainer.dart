@@ -66,7 +66,6 @@ class _DraggableBoxState extends State<DraggableBox> with SingleTickerProviderSt
   }
 
   void handleAnimationChanged() {
-    print("jump: ${controller.value} ${DateTime.now().millisecondsSinceEpoch}");
     if(widget.controller.size != 0.0){
       widget.controller.jumpTo(controller.value);
     }
@@ -102,3 +101,22 @@ class _DraggableBoxState extends State<DraggableBox> with SingleTickerProviderSt
     super.dispose();
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

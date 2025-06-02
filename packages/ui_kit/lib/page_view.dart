@@ -5,41 +5,6 @@ import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show clampDouble, precisionErrorTolerance;
 import 'package:flutter/gestures.dart' show DragStartBehavior;
-import 'package:flutter/material.dart'
-    show
-        ScrollController,
-        Curve,
-        ScrollPhysics,
-        ScrollPosition,
-        ScrollPositionWithSingleContext,
-        ScrollPositionAlignmentPolicy,
-        ScrollMetrics,
-        Tolerance,
-        Simulation,
-        StatefulWidget,
-        Widget,
-        NullableIndexedWidgetBuilder,
-        ChildIndexGetter,
-        SliverChildDelegate,
-        ScrollBehavior,
-        State,
-        BuildContext,
-        ScrollNotification,
-        ScrollUpdateNotification,
-        Curves,
-        PageStorage,
-        ScrollSpringSimulation,
-        SliverChildListDelegate,
-        SliverChildBuilderDelegate,
-        debugCheckHasDirectionality,
-        Directionality,
-        ScrollConfiguration,
-        SliverFillViewport,
-        Viewport,
-        Scrollable,
-        NotificationListener,
-        PageController,
-        PageMetrics;
 import 'package:flutter/rendering.dart';
 
 class _PagePosition extends ScrollPositionWithSingleContext implements PageMetrics {
@@ -388,7 +353,7 @@ class PageFixedDurationScrollPhysics extends ScrollPhysics {
   /// Creates physics for a [PageView2].
   const PageFixedDurationScrollPhysics({
     super.parent,
-    this.duration = const Duration(milliseconds: 100),
+    this.duration = const Duration(milliseconds: 128),
   });
 
   final Duration duration;

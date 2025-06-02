@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:main_tabs_view/scaffold.dart';
 import 'package:ui_kit/animated_off_stage.dart';
 import 'package:ui_kit/media.dart';
 import 'package:ui_kit/tabs.dart';
@@ -64,39 +63,34 @@ class HomeViewState<T extends StatefulWidget> extends State<HomeView<T>>
       ),
     );
 
-    return TransparencyScaffold(
-      resizeToAvoidBottomInset: false,
-      extendBodyBehindAppBar: true,
-      drawer: SizedBox(width: 300),
-      body: Stack(
-        alignment: Alignment.topCenter,
-        children: [
-          TabBarView2(
-            controller: controller,
-            children: [
-              PreventMedia(
-                prevent: controller.index != 0 || PreventMedia.of(context),
-                child: KeepAliveShorts(child: widget.subscribedShorts),
-              ),
-              PreventMedia(
-                prevent: controller.index != 1 || PreventMedia.of(context),
-                child: KeepAliveShorts(child: widget.friendShorts),
-              ),
-              PreventMedia(
-                prevent: controller.index != 2 || PreventMedia.of(context),
-                child: KeepAliveShorts(child: widget.recommendedShorts),
-              ),
-            ],
-          ),
-          AnimatedOpacityOffStage(
-            opacity:
-                widget.showTabBar && MediaQuery.orientationOf(context) == Orientation.portrait
-                    ? 1.0
-                    : 0.0,
-            child: appBar,
-          ),
-        ],
-      ),
+    return Stack(
+      alignment: Alignment.topCenter,
+      children: [
+        TabBarView2(
+          controller: controller,
+          children: [
+            PreventMedia(
+              prevent: controller.index != 0 || PreventMedia.of(context),
+              child: KeepAliveShorts(child: widget.subscribedShorts),
+            ),
+            PreventMedia(
+              prevent: controller.index != 1 || PreventMedia.of(context),
+              child: KeepAliveShorts(child: widget.friendShorts),
+            ),
+            PreventMedia(
+              prevent: controller.index != 2 || PreventMedia.of(context),
+              child: KeepAliveShorts(child: widget.recommendedShorts),
+            ),
+          ],
+        ),
+        AnimatedOpacityOffStage(
+          opacity:
+              widget.showTabBar && MediaQuery.orientationOf(context) == Orientation.portrait
+                  ? 1.0
+                  : 0.0,
+          child: appBar,
+        ),
+      ],
     );
   }
 

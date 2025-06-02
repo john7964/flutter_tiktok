@@ -134,7 +134,6 @@ class BottomBar extends StatelessWidget {
             return Expanded(
               child: LayoutBuilder(
                 builder: (context, constrains) {
-                  print(constrains);
                   return TextButton(
                     onPressed: () => onIndexChange(index),
                     style: ButtonStyle(

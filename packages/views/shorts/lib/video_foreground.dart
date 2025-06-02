@@ -11,18 +11,22 @@ import 'bloc/video_player_state.dart';
 const Duration _duration = Duration(milliseconds: 100);
 
 class VideoForeground extends StatefulWidget {
-  const VideoForeground({super.key, required this.onTapComments, required this.onTapText});
+  const VideoForeground({
+    super.key,
+    required this.onTapComments,
+    required this.onTapText,
+    required this.opacity,
+  });
 
   final VoidCallback onTapComments;
   final VoidCallback onTapText;
+  final double? opacity;
 
   @override
   State<VideoForeground> createState() => _VideoForegroundState();
 }
 
 class _VideoForegroundState extends State<VideoForeground> {
-  bool moving = false;
-
   void handleTapVideo() {
     final bloc = context.read<Bloc<dynamic, VideoPlayerState>>();
     bloc.add(VideoPauseEvent(pause: !bloc.state.isPaused));
@@ -43,49 +47,43 @@ class _VideoForegroundState extends State<VideoForeground> {
 
   @override
   Widget build(BuildContext context) {
-    return Listener(
+    return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onPointerMove: (event) => setState(() => moving = true),
-      onPointerUp: (event) => setState(() => moving = false),
-      onPointerCancel: (event) => setState(() => moving = false),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: handleTapVideo,
-        child: AnimatedOpacity(
-          duration: _duration,
-          opacity: moving ? 0.3 : 1.0,
-          child: Stack(
-            children: [
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 24),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(child: VideoLeftInfo(onTextTap: widget.onTapText)),
-                      SizedBox(width: 32),
-                      VideoRightBar(onTapComments: widget.onTapComments),
-                    ],
-                  ),
+      onTap: handleTapVideo,
+      child: AnimatedOpacity(
+        duration: _duration,
+        opacity: widget.opacity ?? 1.0,
+        child: Stack(
+          children: [
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 24),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(child: VideoLeftInfo(onTextTap: widget.onTapText)),
+                    SizedBox(width: 32),
+                    VideoRightBar(onTapComments: widget.onTapComments),
+                  ],
                 ),
               ),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12.0),
-                  child: BlocBuilder<Bloc<dynamic, VideoPlayerState>, VideoPlayerState>(
-                    builder: (context, state) => VideoIndicator(playerState: state),
-                  ),
-                ),
-              ),
-              Align(
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12.0),
                 child: BlocBuilder<Bloc<dynamic, VideoPlayerState>, VideoPlayerState>(
-                  builder: (context, state) => PlayButton(isPause: state.isPaused),
+                  builder: (context, state) => VideoIndicator(playerState: state),
                 ),
-              )
-            ],
-          ),
+              ),
+            ),
+            Align(
+              child: BlocBuilder<Bloc<dynamic, VideoPlayerState>, VideoPlayerState>(
+                builder: (context, state) => PlayButton(isPause: state.isPaused),
+              ),
+            )
+          ],
         ),
       ),
     );
@@ -103,7 +101,7 @@ class VideoLeftInfo extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTextTap,
       child: DefaultTextStyle(
-        style: TextStyle(color: Colors.white, fontSize: 14, height: 1.2),
+        style: TextStyle(color: Colors.white, fontSize: 14.5, height: 1.4),
         overflow: TextOverflow.ellipsis,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

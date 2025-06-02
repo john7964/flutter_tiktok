@@ -13,9 +13,7 @@ void main() async {
     // overlays: [SystemUiOverlay.top],
   );
 
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   runApp(const App());
 }
@@ -38,9 +36,7 @@ class _TestNavigatorState extends State<TestNavigator> with TickerProviderStateM
         GestureRecognizerFactoryWithHandlers<HorizontalDragGestureRecognizer>(
           () => HorizontalDragGestureRecognizer(debugOwner: this),
           (HorizontalDragGestureRecognizer instance) {
-            instance
-              ..onlyAcceptDragOnThreshold = false
-              ..onStart = (details) => print(details)
+            instance.onlyAcceptDragOnThreshold = false
             // ..onUpdate =  (details) => print(details)
             // ..onEnd = (details) => print(details)
             ;

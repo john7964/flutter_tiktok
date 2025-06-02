@@ -8,6 +8,11 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       theme: ThemeData(
+        textTheme: TextTheme(
+          bodyMedium: TextStyle(
+            fontFamilyFallback: ["PingFang SC"]
+          )
+        )
       ),
         themeMode: ThemeMode.dark, home: LoginIntegration());
   }

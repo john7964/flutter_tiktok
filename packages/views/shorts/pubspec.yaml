@@ -13,6 +13,7 @@ dependencies:
   flutter_bloc: ^9.1.0
   bloc: ^9.0.0
   uuid: ^4.5.1
+  unicode_emojis: ^0.4.0
 
   cupertino_icons: ^1.0.8
   ui_kit:

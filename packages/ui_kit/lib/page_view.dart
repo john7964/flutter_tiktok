@@ -314,8 +314,6 @@ class _SnappingSimulation extends Simulation {
   final double endPosition;
   late final double velocity;
 
-  static const double minimumSpeed = 1600.0;
-
   @override
   double dx(double time) {
     if (isDone(time)) {
@@ -353,7 +351,7 @@ class PageFixedDurationScrollPhysics extends ScrollPhysics {
   /// Creates physics for a [PageView2].
   const PageFixedDurationScrollPhysics({
     super.parent,
-    this.duration = const Duration(milliseconds: 128),
+    this.duration = const Duration(milliseconds: 100),
   });
 
   final Duration duration;

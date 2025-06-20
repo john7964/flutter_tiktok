@@ -6,6 +6,6 @@ class MessageViewIntegration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MessageView();
+    return MessageView();
   }
 }

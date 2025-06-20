@@ -14,7 +14,10 @@ class MallView extends StatelessWidget {
     bool hasScaffold = context.findAncestorStateOfType<ScaffoldState>() != null;
     Widget child = Center(child: Text("mall"));
     if (!hasScaffold) {
-      child = SafeArea(top: false, child: Scaffold(body: child));
+      child = Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.viewPaddingOf(context).bottom),
+        child: Scaffold(body: child),
+      );
     }
     return child;
   }

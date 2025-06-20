@@ -16,13 +16,7 @@ class RootNavigator extends Navigator {
     super.restorationScopeId,
     super.routeTraversalEdgeBehavior = kDefaultRouteTraversalEdgeBehavior,
     super.onDidRemovePage,
-    required this.routeObserver,
   });
-
-  final RouteObserver routeObserver;
-
-  @override
-  List<NavigatorObserver> get observers => [routeObserver, ...super.observers];
 
   static RootNavigatorState of(BuildContext context) {
     RootNavigatorState? navigator;
@@ -50,11 +44,4 @@ class RootNavigator extends Navigator {
 }
 
 class RootNavigatorState extends NavigatorState {
-  void subscribeRouteAware(RouteAware routeAware, Route route) {
-    (widget as RootNavigator).routeObserver.subscribe(routeAware, route);
-  }
-
-  void unSubscribeRouteAware(RouteAware routeAware) {
-    (widget as RootNavigator).routeObserver.unsubscribe(routeAware);
-  }
 }

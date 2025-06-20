@@ -18,3 +18,20 @@ extension IntFormatter on int {
     return this < 10 ? "0$this" : "$this";
   }
 }
+
+
+extension Timestamp on int {
+  String get formatTimestamp {
+    final DateTime now = DateTime.now();
+    final DateTime date = DateTime.fromMillisecondsSinceEpoch(this);
+    final Duration diff = now.difference(date);
+
+    if (diff.inMinutes < 3) {
+      return "刚刚";
+    }
+    if (now.year == date.year && now.month == date.month && now.day == date.day) {
+      return "今天 ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+    }
+    return "${date.month}-${date.day} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+  }
+}

@@ -1,8 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:ui_kit/animated_off_stage.dart';
-import 'package:ui_kit/media.dart';
+import 'package:ui_kit/appbar_manager.dart';
 import 'package:ui_kit/tabs.dart';
+import 'package:ui_kit/media_certificate/indexed_media_certificate.dart';
 
 /// A Calculator.
 class Calculator {
@@ -13,28 +14,44 @@ class Calculator {
 class HomeView<T extends StatefulWidget> extends StatefulWidget {
   const HomeView({
     super.key,
-    required this.showTabBar,
     required this.recommendedShorts,
     required this.friendShorts,
     required this.subscribedShorts,
+    required this.onPressSearch,
   });
 
-  final bool showTabBar;
   final Widget recommendedShorts;
   final Widget friendShorts;
   final Widget subscribedShorts;
+  final VoidCallback onPressSearch;
 
   @override
   State<HomeView<T>> createState() => HomeViewState<T>();
 }
 
 class HomeViewState<T extends StatefulWidget> extends State<HomeView<T>>
-    with SingleTickerProviderStateMixin {
-  late final TabController2 controller = TabController2(length: 3, vsync: this)..index = 2;
+    with SingleTickerProviderStateMixin, AppBarManager {
+  late final TabController2 controller = TabController2(length: 3, vsync: this, initialIndex: 2);
+  ValueNotifier<int> index = ValueNotifier(2);
+  bool showTopBar = true;
+
+  @override
+  void changeAppBar({bool? top, bool? bottom}) {
+    if (top != null && showTopBar != top) {
+      setState(() => showTopBar = top);
+    }
+    super.changeAppBar(top: top, bottom: bottom);
+  }
+
+  void handleTabChanged() {
+    if (controller.index != index.value) {
+      this.index.value = controller.index;
+    }
+  }
 
   @override
   void initState() {
-    controller.addIndexListener(() => setState(() {}));
+    controller.addListener(handleTabChanged);
     super.initState();
   }
 
@@ -47,7 +64,7 @@ class HomeViewState<T extends StatefulWidget> extends State<HomeView<T>>
       actions: [
         IconButton(
           icon: Icon(CupertinoIcons.search, size: 26, color: Colors.white.withAlpha(230)),
-          onPressed: () {},
+          onPressed: widget.onPressSearch,
         ),
       ],
       title: TabBar(
@@ -59,6 +76,7 @@ class HomeViewState<T extends StatefulWidget> extends State<HomeView<T>>
         indicatorWeight: 2,
         indicatorColor: Colors.white,
         labelStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        overlayColor: WidgetStatePropertyAll(Colors.transparent),
         tabs: [Text("关注"), Text("朋友"), Text("推荐")],
       ),
     );
@@ -66,28 +84,29 @@ class HomeViewState<T extends StatefulWidget> extends State<HomeView<T>>
     return Stack(
       alignment: Alignment.topCenter,
       children: [
-        TabBarView2(
-          controller: controller,
-          children: [
-            PreventMedia(
-              prevent: controller.index != 0 || PreventMedia.of(context),
-              child: KeepAliveShorts(child: widget.subscribedShorts),
-            ),
-            PreventMedia(
-              prevent: controller.index != 1 || PreventMedia.of(context),
-              child: KeepAliveShorts(child: widget.friendShorts),
-            ),
-            PreventMedia(
-              prevent: controller.index != 2 || PreventMedia.of(context),
-              child: KeepAliveShorts(child: widget.recommendedShorts),
-            ),
-          ],
+        IndexedMediaCertificateDispatcher(
+          controller: index,
+          child: TabBarView2(
+            controller: controller,
+            children: [
+              IndexedMediaCertificateScope(
+                index: 0,
+                child: KeepAliveShorts(child: widget.subscribedShorts),
+              ),
+              IndexedMediaCertificateScope(
+                index: 1,
+                child: KeepAliveShorts(child: widget.friendShorts),
+              ),
+              IndexedMediaCertificateScope(
+                index: 2,
+                child: KeepAliveShorts(child: widget.recommendedShorts),
+              ),
+            ],
+          ),
         ),
         AnimatedOpacityOffStage(
           opacity:
-              widget.showTabBar && MediaQuery.orientationOf(context) == Orientation.portrait
-                  ? 1.0
-                  : 0.0,
+              showTopBar && MediaQuery.orientationOf(context) == Orientation.portrait ? 1.0 : 0.0,
           child: appBar,
         ),
       ],
@@ -97,6 +116,7 @@ class HomeViewState<T extends StatefulWidget> extends State<HomeView<T>>
   @override
   void dispose() {
     controller.dispose();
+    index.dispose();
     super.dispose();
   }
 }

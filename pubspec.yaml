@@ -30,10 +30,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  flutter_localizations:
+    sdk: flutter
   flutter_bloc: ^9.1.0
   bloc: ^9.0.0
-
   widget_state:
     path: ./packages/widget_state
   ui_kit:
@@ -48,8 +48,8 @@ dependencies:
     path: ./packages/views/mall
   message_view:
     path: ./packages/views/message
-  me_view:
-    path: ./packages/views/me
+  user:
+    path: ./packages/views/user
   create_short_view:
     path: ./packages/views/create_short
   shorts_view:
@@ -78,8 +78,8 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
+  assets:
+    - assets/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

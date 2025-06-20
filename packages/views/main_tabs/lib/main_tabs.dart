@@ -3,7 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:main_tabs_view/home_tabs.dart';
-import 'package:ui_kit/media.dart';
+import 'package:ui_kit/appbar_manager.dart';
+import 'package:ui_kit/media_certificate/indexed_media_certificate.dart';
 
 /// A Calculator.
 class Calculator {
@@ -18,30 +19,41 @@ class MainTabsView extends StatefulWidget {
     required this.message,
     required this.me,
     required this.onPressCreate,
-    required this.showBottomBar,
-    required this.showTopBar,
     required this.recommendedShorts,
     required this.friendShorts,
     required this.subscribedShorts,
+    required this.onPressSearch,
   });
 
-  final bool showTopBar;
-  final bool showBottomBar;
   final Widget mall;
   final Widget message;
   final Widget me;
   final Widget recommendedShorts;
   final Widget friendShorts;
   final Widget subscribedShorts;
-  final FutureOr<void> Function(BuildContext context) onPressCreate;
+  final FutureOr<void> Function() onPressCreate;
+  final VoidCallback onPressSearch;
 
   @override
   State<MainTabsView> createState() => _MainTabsViewState();
 }
 
-class _MainTabsViewState<T extends StatefulWidget> extends State<MainTabsView> {
-  int index = 0;
-  double barHeight = 46;
+class _MainTabsViewState<T extends StatefulWidget> extends State<MainTabsView> with AppBarManager {
+  final ValueNotifier<int> index = ValueNotifier(0);
+  double barHeight = 46.5;
+  bool showBottomBar = true;
+
+  @override
+  void changeAppBar({bool? top, bool? bottom}) {
+    if (bottom != null && bottom != showBottomBar) {
+      setState(() {
+        showBottomBar = bottom;
+      });
+    }
+    super.changeAppBar(top: top, bottom: bottom);
+  }
+
+  void handleIndexChange(int index) => this.index.value = index;
 
   @override
   void initState() {
@@ -49,26 +61,47 @@ class _MainTabsViewState<T extends StatefulWidget> extends State<MainTabsView> {
     super.initState();
   }
 
-  void handleIndexChange(int index) {
-    setState(() {
-      this.index = index;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    Widget home = PreventMedia(
-      prevent: index != 0 || PreventMedia.of(context),
+    MediaQueryData media = MediaQuery.of(context);
+    final EdgeInsets viewPadding = EdgeInsets.only(bottom: barHeight);
+    media = media.copyWith(viewPadding: media.viewPadding.add(viewPadding) as EdgeInsets);
+
+    final Widget home = IndexedMediaCertificateScope(
+      index: 0,
       child: HomeView<T>(
-        showTabBar: widget.showTopBar,
         friendShorts: widget.friendShorts,
         recommendedShorts: widget.recommendedShorts,
         subscribedShorts: widget.subscribedShorts,
+        onPressSearch: widget.onPressSearch,
       ),
     );
 
+    final Widget bottom = ValueListenableBuilder(
+      valueListenable: index,
+      builder: (context, value, child) {
+        return BottomBar(index: value, onIndexChange: handleIndexChange);
+      },
+    );
+    final Widget stack = IndexedMediaCertificateDispatcher(
+      controller: index,
+      child: ValueListenableBuilder(
+        valueListenable: index,
+        builder: (context, value, child) {
+          return IndexedStack(
+            index: value,
+            children: [
+              IndexedMediaCertificateScope(index: 0, child: home),
+              IndexedMediaCertificateScope(index: 1, child: widget.mall),
+              IndexedMediaCertificateScope(index: 2, child: widget.message),
+              IndexedMediaCertificateScope(index: 3, child: widget.me),
+            ],
+          );
+        }
+      ),
+    );
     return Theme(
-      data: ThemeData(
+      data: Theme.of(context).copyWith(
         textButtonTheme: TextButtonThemeData(
           style: ButtonStyle(foregroundColor: WidgetStatePropertyAll(Colors.white)),
         ),
@@ -78,31 +111,11 @@ class _MainTabsViewState<T extends StatefulWidget> extends State<MainTabsView> {
         color: Colors.black,
         child: OrientationBuilder(
           builder: (context, orientation) {
-            MediaQueryData media = MediaQuery.of(context);
-            if (orientation == Orientation.portrait) {
-              media = media.copyWith(
-                padding: media.padding.add(EdgeInsets.only(bottom: barHeight)) as EdgeInsets,
-              );
-            }
             return Stack(
               alignment: Alignment.bottomLeft,
               children: [
-                Offstage(
-                  offstage: orientation == Orientation.landscape,
-                  child: BottomBar(index: index, onIndexChange: handleIndexChange),
-                ),
-                MediaQuery(
-                  data: media,
-                  child: IndexedStack(
-                    index: index,
-                    children: [
-                      home,
-                      SafeArea(top: false, child: widget.mall),
-                      SafeArea(top: false, child: widget.message),
-                      SafeArea(top: false, child: widget.me),
-                    ],
-                  ),
-                ),
+                Offstage(offstage: orientation == Orientation.landscape, child: bottom),
+                if (showBottomBar) MediaQuery(data: media, child: stack),
               ],
             );
           },
@@ -121,31 +134,36 @@ class BottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isHome = index == 0;
+    final Color foregroundColor = isHome ? Colors.white : Colors.black;
+    final Color unSelectedColor = foregroundColor.withAlpha(180);
+    final Color backgroundColor = isHome ? Colors.black87 : Colors.white;
+    final TextStyle textStyle = TextStyle(fontWeight: FontWeight.bold, fontSize: 16);
     return Container(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewPadding.bottom),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        border: Border(top: BorderSide(color: Colors.black12, width: 0.5)),
+      ),
       child: SizedBox(
         height: 46,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: List.generate(titles.length, (index) {
-            final foregroundColor = WidgetStatePropertyAll<Color>(
-              this.index == index ? Colors.white : Colors.white.withAlpha(180),
+            final color = WidgetStatePropertyAll<Color>(
+              this.index == index ? foregroundColor : unSelectedColor,
             );
             return Expanded(
-              child: LayoutBuilder(
-                builder: (context, constrains) {
-                  return TextButton(
-                    onPressed: () => onIndexChange(index),
-                    style: ButtonStyle(
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      foregroundColor: foregroundColor,
-                      textStyle: WidgetStatePropertyAll(
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                    ),
-                    child: Text(titles[index]),
-                  );
-                },
+              child: TextButton(
+                onPressed: () => onIndexChange(index),
+                style: ButtonStyle(
+                  animationDuration: Duration.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  foregroundColor: color,
+                  overlayColor: WidgetStatePropertyAll(Colors.transparent),
+                  textStyle: WidgetStatePropertyAll(textStyle),
+                ),
+                child: Text(titles[index]),
               ),
             );
           }),

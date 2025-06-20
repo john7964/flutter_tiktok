@@ -13,6 +13,7 @@ dependencies:
   ui_kit:
     path: ../../ui_kit
 
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

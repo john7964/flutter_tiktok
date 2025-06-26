@@ -34,7 +34,7 @@ class SlideDrawer<T> extends PageRoute<T> {
   );
 
   @override
-  Color? barrierColor;
+  final Color? barrierColor;
 
   @override
   String? get barrierLabel => null;
@@ -134,6 +134,10 @@ class _DrawerVerticalGestureController with FractionalDragDelegate {
 
   @override
   void handleDragEnd(double dxVelocityRatio, double dyVelocityRatio) async {
+    if(!route.navigator!.userGestureInProgress){
+      return;
+    }
+
     const Curve animationCurve = Curves.easeOut;
     final bool animateForward;
     if (!route.isCurrent) {

@@ -5,7 +5,24 @@ import 'package:flutter/material.dart';
 import 'package:ui_kit/draggable.dart';
 
 mixin ResizedRouteTarget<T extends StatefulWidget> on State<T> {
-  void didChangedFraction(double fraction);
+  @mustCallSuper
+  void didUpdateFraction(double fraction) {
+    if(fraction == 1.0){
+      Scrollable.ensureVisible(context, alignment: 0.5);
+    }
+  }
+
+  void didStartFraction() {}
+
+  void didEndFraction() {}
+
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 }
 
 class DraggableResizedRoute<T> extends PageRoute<T> {
@@ -21,14 +38,12 @@ class DraggableResizedRoute<T> extends PageRoute<T> {
     required this.builder,
   });
 
-  static ResizingRouteScope? maybeOf(BuildContext context){
+  static ResizingRouteScope? maybeOf(BuildContext context) {
     return context.dependOnInheritedWidgetOfExactType<ResizingRouteScope>();
   }
 
   final Widget Function(BuildContext context) builder;
   final ResizedRouteTarget Function() getTarget;
-  late final _FractionalController _fractionalController;
-  final ValueNotifier<double> fractionNotifier = ValueNotifier(0.0);
 
   @override
   Color? get barrierColor => null;
@@ -45,21 +60,32 @@ class DraggableResizedRoute<T> extends PageRoute<T> {
   @override
   Duration get transitionDuration => Duration(milliseconds: 200);
 
-  void handleAnimationChanged() {
-    fractionNotifier.value = _fractionalController.scale * controller!.value;
-  }
+  ResizedRouteTarget? previousTarget;
 
   void handleFractionChanged() {
-    getTarget().didChangedFraction(fractionNotifier.value);
+    final ResizedRouteTarget currentTarget = getTarget();
+    if (previousTarget?._disposed ?? false) {
+      previousTarget = null;
+    }
+    if (previousTarget != currentTarget) {
+      previousTarget?.didUpdateFraction(0.0);
+      previousTarget?.didEndFraction();
+      previousTarget = currentTarget;
+      currentTarget.didStartFraction();
+    }
+    currentTarget.didUpdateFraction(animation!.value);
   }
 
   @override
   void install() {
     super.install();
-    _fractionalController = _FractionalController(route: this);
-    _fractionalController.addListener(handleAnimationChanged);
-    fractionNotifier.addListener(handleFractionChanged);
-    controller!.addListener(handleAnimationChanged);
+    controller!.addListener(handleFractionChanged);
+  }
+
+  @override
+  void dispose() {
+    previousTarget?.didEndFraction();
+    super.dispose();
   }
 
   @override
@@ -68,7 +94,7 @@ class DraggableResizedRoute<T> extends PageRoute<T> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) {
-    return ResizingRouteScope(fraction: fractionNotifier, child: builder(context));
+    return ResizingRouteScope(animation: animation, child: builder(context));
   }
 
   @override
@@ -79,75 +105,96 @@ class DraggableResizedRoute<T> extends PageRoute<T> {
     Widget child,
   ) {
     return _DraggableSheet(
-      target: getTarget(),
+      getTarget: getTarget,
       route: this,
       routeAnimation: controller!,
-      fractionalController: _fractionalController,
       child: child,
     );
-  }
-
-  @override
-  void dispose() {
-    _fractionalController.dispose();
-    fractionNotifier.dispose();
-    super.dispose();
   }
 }
 
 class _FractionalController extends ChangeNotifier with FractionalDragDelegate {
-  _FractionalController({required this.route});
+  _FractionalController({required this.route, required this.routeController});
 
   final ModalRoute route;
-  late final AnimationController _animationController = AnimationController(
-    vsync: route.navigator!,
-    duration: Duration(milliseconds: 300),
-  );
+  final AnimationController routeController;
 
-  Offset offset = Offset.zero;
-  Alignment alignment = Alignment.center;
-  double scale = 1.0;
-  bool isDragging = false;
+  Offset _offset = Offset.zero;
+  Alignment _dragAlignment = Alignment.center;
+  double dragEndProgress = 1.0;
+
+  late CurvedAnimation alignmentCurve = CurvedAnimation(
+    curve: Curves.fastEaseInToSlowEaseOut.flipped,
+    parent: routeController,
+  );
 
   @override
   FutureOr<void> handleDragStart(DragStartDetails details, Alignment alignment) {
-    isDragging = true;
-    this.alignment = alignment;
-    offset = Offset.zero;
+    route.navigator?.didStartUserGesture();
+    _dragAlignment = alignment;
+    _offset = Offset.zero;
     notifyListeners();
   }
 
   @override
   FutureOr<void> handleDragUpdate(Offset offset) {
-    this.offset = this.offset + offset;
-    scale = 1.0 - min(0.3, max(this.offset.dx.abs(), this.offset.dy.abs()));
+    _offset = _offset + offset;
+    double progress = 1.0 - min(0.3, max(_offset.dx.abs(), _offset.dy.abs()));
+    routeController.value = progress;
     notifyListeners();
   }
 
   @override
   FutureOr<void> handleDragEnd(double dxVelocityRatio, double dyVelocityRatio) async {
-    if (scale < 0.80) {
+    dragEndProgress = routeController.value;
+    if (routeController.value < 0.80) {
       if (route.isCurrent) {
         route.navigator?.pop();
-        isDragging = false;
       }
     } else {
-      OffsetTween offsetTween = OffsetTween(begin: offset, end: Offset.zero);
-      AlignmentTween alignmentTween = AlignmentTween(begin: alignment, end: Alignment.center);
-      Tween<double> scaleTween = Tween(begin: scale, end: 1.0);
-      void listener() {
-        offset = offsetTween.lerp(_animationController.value);
-        alignment = alignmentTween.lerp(_animationController.value);
-        scale = scaleTween.lerp(_animationController.value);
-        notifyListeners();
-      }
-
-      _animationController.addListener(listener);
-      await _animationController.forward(from: 0);
-      isDragging = false;
-      _animationController.removeListener(listener);
-      notifyListeners();
+      await routeController.forward();
     }
+    route.navigator?.didStopUserGesture();
+    notifyListeners();
+  }
+
+  Alignment getAlignment(Alignment targetAlignment) {
+    double progress = routeController.value;
+    if ((route.navigator?.userGestureInProgress ?? true) || dragEndProgress == 1.0) {
+      return AlignmentTween(begin: targetAlignment, end: _dragAlignment).transform(progress);
+    }
+
+    final TweenSequence<Alignment> sequence = TweenSequence([
+      TweenSequenceItem(
+        tween: AlignmentTween(begin: targetAlignment, end: _dragAlignment),
+        weight: dragEndProgress,
+      ),
+      TweenSequenceItem(
+        tween: AlignmentTween(begin: _dragAlignment, end: Alignment.center),
+        weight: 1 - dragEndProgress,
+      ),
+    ]);
+
+    return sequence.transform(routeController.value);
+  }
+
+  Offset get offSet {
+    if ((route.navigator?.userGestureInProgress ?? true) || dragEndProgress == 1.0) {
+      return _offset;
+    }
+
+    final TweenSequence<Offset> sequence = TweenSequence([
+      TweenSequenceItem(
+        tween: OffsetTween(begin: Offset.zero, end: _offset),
+        weight: dragEndProgress,
+      ),
+      TweenSequenceItem(
+        tween: OffsetTween(begin: _offset, end: Offset.zero),
+        weight: 1 - dragEndProgress,
+      ),
+    ]);
+
+    return sequence.transform(routeController.value);
   }
 }
 
@@ -160,24 +207,27 @@ class OffsetTween extends Tween<Offset> {
 
 class _DraggableSheet extends StatefulWidget {
   const _DraggableSheet({
-    required this.target,
+    required this.getTarget,
     required this.child,
     required this.route,
     required this.routeAnimation,
-    required this.fractionalController,
   });
 
-  final ResizedRouteTarget target;
-  final Animation<double> routeAnimation;
+  final AnimationController routeAnimation;
   final Widget child;
   final ModalRoute route;
-  final _FractionalController fractionalController;
+  final ResizedRouteTarget Function() getTarget;
 
   @override
   State<_DraggableSheet> createState() => _DraggableRouteTransition();
 }
 
 class _DraggableRouteTransition extends State<_DraggableSheet> with TickerProviderStateMixin {
+  late final _FractionalController _fractionalController = _FractionalController(
+    route: widget.route,
+    routeController: widget.routeAnimation,
+  );
+
   Alignment getAlignment(Size parentSize, Size childSize, Offset offset) {
     final Offset other = (parentSize - childSize) as Offset;
     final double centerX = other.dx / 2.0;
@@ -193,48 +243,32 @@ class _DraggableRouteTransition extends State<_DraggableSheet> with TickerProvid
     final Widget transition = LayoutBuilder(
       builder: (context, constrains) {
         return ListenableBuilder(
-          listenable: widget.fractionalController,
+          listenable: _fractionalController,
           builder: (context, child) {
-            RenderBox targetRenderBox = widget.target.context.findRenderObject() as RenderBox;
+            final State target = widget.getTarget();
+            RenderBox targetRenderBox = target.context.findRenderObject() as RenderBox;
             RenderObject navigatorRenderBox = widget.route.navigator!.context.findRenderObject()!;
 
             Size beginSize = targetRenderBox.size;
-            Size endSize = Size(
-              constrains.maxWidth * widget.fractionalController.scale,
-              constrains.maxHeight * widget.fractionalController.scale,
-            );
+            Size endSize = constrains.biggest;
 
             final CurvedAnimation sizedCurved = CurvedAnimation(
               parent: widget.routeAnimation,
-              curve: Curves.fastEaseInToSlowEaseOut,
-              reverseCurve: Curves.fastEaseInToSlowEaseOut,
+              curve: Curves.linear,
             );
             final SizeTween sizeTween = SizeTween(begin: beginSize, end: endSize);
             final Animation<Size?> sizeAnimation = sizedCurved.drive(sizeTween);
-
             Offset tagetOffset = targetRenderBox.localToGlobal(
               Offset.zero,
               ancestor: navigatorRenderBox,
             );
+
             Alignment targetAlignment = getAlignment(constrains.biggest, beginSize, tagetOffset);
-            AlignmentTween alignmentTween = AlignmentTween(
-              begin: targetAlignment,
-              end: widget.fractionalController.alignment,
-            );
 
-            Animation<Alignment> alignmentAnimation = CurvedAnimation(
-              curve: Curves.fastEaseInToSlowEaseOut.flipped,
-              parent: widget.routeAnimation,
-            ).drive(alignmentTween);
-
-            OffsetTween offsetTween = OffsetTween(
-              begin: Offset.zero,
-              end: widget.fractionalController.offset,
-            );
             return FractionalTranslation(
-              translation: offsetTween.lerp(widget.routeAnimation.value),
+              translation: _fractionalController.offSet,
               child: Align(
-                alignment: alignmentAnimation.value,
+                alignment: _fractionalController.getAlignment(targetAlignment),
                 child: SizedBox.fromSize(size: sizeAnimation.value, child: widget.child),
               ),
             );
@@ -244,21 +278,27 @@ class _DraggableRouteTransition extends State<_DraggableSheet> with TickerProvid
     );
 
     return FractionalGestureDetector(
-      controller: widget.fractionalController,
+      controller: _fractionalController,
       horizontalEnabled: true,
       verticalEnabled: false,
       child: transition,
     );
   }
+
+  @override
+  void dispose() {
+    _fractionalController.dispose();
+    super.dispose();
+  }
 }
 
 class ResizingRouteScope extends InheritedWidget {
-  const ResizingRouteScope({super.key, required this.fraction, required super.child});
+  const ResizingRouteScope({super.key, required this.animation, required super.child});
 
-  final ValueNotifier<double> fraction;
+  final Animation<double> animation;
 
   @override
   bool updateShouldNotify(covariant ResizingRouteScope oldWidget) {
-    return oldWidget.fraction != fraction;
+    return oldWidget.animation != animation;
   }
 }

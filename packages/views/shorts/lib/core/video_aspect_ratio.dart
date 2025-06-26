@@ -4,9 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shorts_view/bloc/video_player_bloc.dart';
-import 'package:ui_kit/media_certificate/media_certificate.dart';
 import 'package:video_player/video_player.dart';
-
 
 class VideoAspectRatio extends StatefulWidget {
   const VideoAspectRatio({
@@ -26,7 +24,7 @@ class VideoAspectRatio extends StatefulWidget {
   State<VideoAspectRatio> createState() => _VideoAspectRatioState();
 }
 
-class _VideoAspectRatioState extends State<VideoAspectRatio> with MediaCertificationConsumer{
+class _VideoAspectRatioState extends State<VideoAspectRatio> {
   Size _applyAspectRatio(BoxConstraints constraints, double aspectRatio) {
     if (constraints.isTight) {
       return constraints.smallest;
@@ -73,16 +71,8 @@ class _VideoAspectRatioState extends State<VideoAspectRatio> with MediaCertifica
   }
 
   @override
-  void didChangeDependencies() {
-    context.read<ShortBloc>().add(
-          UpdateCertificationConsumer(consumer: this),
-        );
-    super.didChangeDependencies();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ShortBloc, VideoPlayerState>(
+    return BlocBuilder<VideoPlayerBloc, VideoPlayerState>(
       buildWhen: (previous, current) {
         return current.initialized && previous.aspectRatio != current.aspectRatio;
       },
@@ -117,7 +107,7 @@ class _VideoAspectRatioState extends State<VideoAspectRatio> with MediaCertifica
               padding:
                   widget.padding ?? widget.paddingTween?.lerp(fraction ?? 0.0) ?? EdgeInsets.zero,
               child: ColoredBox(
-                color: Colors.white12,
+                color: Colors.black,
                 child: ClipRRect(
                   child: OverflowBox(
                     fit: OverflowBoxFit.deferToChild,

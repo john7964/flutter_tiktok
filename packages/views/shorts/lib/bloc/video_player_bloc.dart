@@ -4,19 +4,17 @@ import 'package:bloc/bloc.dart';
 import 'package:ui_kit/media_certificate/media_certificate.dart';
 import 'package:video_player/video_player.dart';
 
-class ShortBloc extends Bloc<dynamic, VideoPlayerState> {
-  ShortBloc({required String source})
-      :super(
+class VideoPlayerBloc extends Bloc<dynamic, VideoPlayerState> {
+  VideoPlayerBloc({required String source})
+      : super(
           VideoPlayerState(
-            controller:  VideoPlayerController.network(source),
+            controller: VideoPlayerController.network(source),
           ),
         ) {
     _controller.addListener(handleControllerChanged);
     on<VideoPlayerValue>(_handlePlayerEvent);
     on<IndicatorDraggingEvent>(_handleSeekTo);
     on<VideoPauseEvent>(_handlePause);
-    on<UpdateCertificationConsumer>(_handleMediaPreventUpdated);
-    on<bool>(_handleVerifyChanged);
 
     _controller.initialize();
     handleControllerChanged();
@@ -29,20 +27,7 @@ class ShortBloc extends Bloc<dynamic, VideoPlayerState> {
 
   void handleControllerChanged() => add(_controller.value);
 
-  void _handleVerifyChanged(bool verify, Emitter<VideoPlayerState> emit) {
-    emit(state.copyWith(preventMedia: !verify));
-    state.isPaused || state.preventMedia ? _controller.pause() : _controller.play();
-  }
-
   void _handlePlayerEvent(VideoPlayerValue event, Emitter<VideoPlayerState> emit) {
-    if (event.isInitialized && !state.initialized) {
-      _controller.setLooping(true);
-      if (state.preventMedia || state.isPaused) {
-        _controller.pause();
-      } else {
-        _controller.play();
-      }
-    }
     emit(state.copyWith(
       initialized: event.isInitialized,
       isPlaying: event.isPlaying,
@@ -76,9 +61,6 @@ class ShortBloc extends Bloc<dynamic, VideoPlayerState> {
           isPaused: false,
         ));
         await _controller.seekTo(dragPosition);
-        if (!state.preventMedia) {
-          _controller.play();
-        }
         break;
       default:
         if (!state.isDragging) {
@@ -91,12 +73,6 @@ class ShortBloc extends Bloc<dynamic, VideoPlayerState> {
 
   void _handlePause(VideoPauseEvent event, Emitter<VideoPlayerState> emit) async {
     emit(state.copyWith(isPaused: event.pause));
-    state.isPaused || state.preventMedia ? _controller.pause() : _controller.play();
-  }
-
-  void _handleMediaPreventUpdated(
-      UpdateCertificationConsumer event, Emitter<VideoPlayerState> emit) {
-    verify.addConsumer(event.consumer);
   }
 
   @override
@@ -115,12 +91,6 @@ class VideoPauseEvent extends VideoEvent {
   final bool pause;
 }
 
-class UpdateCertificationConsumer extends VideoEvent {
-  UpdateCertificationConsumer({required this.consumer});
-
-  final MediaCertificationConsumer consumer;
-}
-
 class IndicatorDraggingEvent extends VideoEvent {
   IndicatorDraggingEvent({required this.offsetRatio});
 
@@ -135,7 +105,6 @@ class PlayStateUpdatedEvent extends VideoEvent {
 
 class VideoPlayerState {
   const VideoPlayerState({
-    this.preventMedia = true,
     this.initialized = false,
     this.isPlaying = false,
     this.isPaused = false,
@@ -162,7 +131,6 @@ class VideoPlayerState {
   final Duration dragPosition;
   final bool isDragging;
   final Duration dragStartPosition;
-  final bool preventMedia;
 
   VideoPlayerState copyWith({
     int? id,
@@ -178,7 +146,6 @@ class VideoPlayerState {
     double? aspectRatio,
     bool? isDragging,
     Duration? dragStartPosition,
-    bool? preventMedia,
   }) {
     return VideoPlayerState(
       initialized: initialized ?? this.initialized,
@@ -190,7 +157,6 @@ class VideoPlayerState {
       loading: loading ?? this.loading,
       aspectRatio: aspectRatio ?? this.aspectRatio,
       controller: controller,
-      preventMedia: preventMedia ?? this.preventMedia,
       dragPosition: dragPosition ?? this.dragPosition,
       isDragging: isDragging ?? this.isDragging,
       dragStartPosition: dragStartPosition ?? this.dragStartPosition,

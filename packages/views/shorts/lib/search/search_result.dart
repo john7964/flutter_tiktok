@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shorts_view/shorts_list/shorts_list.dart';
 import 'package:ui_kit/media_certificate/indexed_media_certificate.dart';
-import 'package:ui_kit/theme.dart';
+import 'package:ui_kit/theme/theme.dart';
 
-class SearchResult extends StatefulWidget {
-  const SearchResult({super.key});
+class SearchList extends StatefulWidget {
+  const SearchList({super.key});
 
   @override
-  State<SearchResult> createState() => _SearchResultState();
+  State<SearchList> createState() => _SearchListState();
 }
 
-class _SearchResultState extends State<SearchResult> with SingleTickerProviderStateMixin {
+class _SearchListState extends State<SearchList> with SingleTickerProviderStateMixin {
   final ValueNotifier<int> currentTab = ValueNotifier(0);
   late final TabController tabController;
 
@@ -27,38 +28,41 @@ class _SearchResultState extends State<SearchResult> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onPanDown: (details) => FocusScope.of(context).unfocus(),
-      child: Theme(
-        data: lightTheme,
-        child: Material(
-          color: Color(0xFFF8F8F8),
-          child: NestedScrollView(
-            headerSliverBuilder: (context, scrolled) {
-              return [
-                SliverOverlapAbsorber(
-                  handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-                  sliver: PinnedHeaderSliver(
-                    child: SearchAppBar(bodyScrolled: scrolled, controller: tabController),
+    return Material(
+      color: Colors.white,
+      child: GestureDetector(
+        onPanDown: (details) => FocusScope.of(context).unfocus(),
+        child: Theme(
+          data: lightTheme,
+          child: Material(
+            color: Color(0xFFF8F8F8),
+            child: NestedScrollView(
+              headerSliverBuilder: (context, scrolled) {
+                return [
+                  SliverOverlapAbsorber(
+                    handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+                    sliver: PinnedHeaderSliver(
+                      child: SearchAppBar(bodyScrolled: scrolled, controller: tabController),
+                    ),
                   ),
-                ),
-              ];
-            },
-            body: MediaQuery.removePadding(
-              context: context,
-              removeTop: true,
-              child: IndexedMediaCertificateDispatcher(
-                controller: currentTab,
-                child: TabBarView(
-                  controller: tabController,
-                  children: [
-                    IndexedMediaCertificateScope(index: 0, child: ShortsList()),
-                    IndexedMediaCertificateScope(index: 1, child: SizedBox()),
-                    IndexedMediaCertificateScope(index: 2, child: SizedBox()),
-                    IndexedMediaCertificateScope(index: 3, child: SizedBox()),
-                    IndexedMediaCertificateScope(index: 4, child: SizedBox()),
-                    IndexedMediaCertificateScope(index: 5, child: SizedBox()),
-                  ],
+                ];
+              },
+              body: MediaQuery.removePadding(
+                context: context,
+                removeTop: true,
+                child: IndexedMediaCertificateDispatcher(
+                  controller: currentTab,
+                  child: TabBarView(
+                    controller: tabController,
+                    children: [
+                      IndexedMediaCertificateScope(index: 0, child: ShortsList()),
+                      IndexedMediaCertificateScope(index: 1, child: SizedBox()),
+                      IndexedMediaCertificateScope(index: 2, child: SizedBox()),
+                      IndexedMediaCertificateScope(index: 3, child: SizedBox()),
+                      IndexedMediaCertificateScope(index: 4, child: SizedBox()),
+                      IndexedMediaCertificateScope(index: 5, child: SizedBox()),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -119,8 +123,9 @@ class _SearchAppBarState extends State<SearchAppBar> {
           indicatorColor: Colors.black87,
         ),
         inputDecorationTheme: InputDecorationTheme(
+          isDense: true,
           constraints: BoxConstraints(maxHeight: 38),
-          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           hintStyle: TextStyle(fontSize: 14),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(2),
@@ -130,40 +135,46 @@ class _SearchAppBarState extends State<SearchAppBar> {
           fillColor: Color(0xFFE7E7E9),
         ),
       ),
-      child: Container(
-        color: widget.bodyScrolled ? Colors.white : null,
-        padding: EdgeInsets.only(top: MediaQuery.viewPaddingOf(context).top),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                IconButton(onPressed: () {}, icon: Icon(Icons.arrow_back_ios_new)),
-                Expanded(child: TextField(decoration: InputDecoration(hintText: "评论"))),
-                TextButton(onPressed: () {}, child: Text("搜索"))
-              ],
-            ),
-            SizedBox(height: 8.0),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TabBar(
-                    isScrollable: true,
-                    padding: EdgeInsets.zero,
-                    controller: widget.controller,
-                    tabs: [
-                      Tab(text: "综合", height: 36),
-                      Tab(text: "视频", height: 36),
-                      Tab(text: "用户", height: 36),
-                      Tab(text: "商品", height: 36),
-                      Tab(text: "直播", height: 36),
-                      Tab(text: "音乐", height: 36),
-                    ],
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.dark,
+        child: Container(
+          color: widget.bodyScrolled ? Colors.white : null,
+          padding: EdgeInsets.only(top: MediaQuery.viewPaddingOf(context).top),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(Icons.arrow_back_ios_new),
                   ),
-                ),
-              ],
-            ),
-          ],
+                  Expanded(child: TextField(decoration: InputDecoration(hintText: "评论"))),
+                  TextButton(onPressed: () {}, child: Text("搜索"))
+                ],
+              ),
+              SizedBox(height: 8.0),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TabBar(
+                      isScrollable: true,
+                      padding: EdgeInsets.zero,
+                      controller: widget.controller,
+                      tabs: [
+                        Tab(text: "综合", height: 36),
+                        Tab(text: "视频", height: 36),
+                        Tab(text: "用户", height: 36),
+                        Tab(text: "商品", height: 36),
+                        Tab(text: "直播", height: 36),
+                        Tab(text: "音乐", height: 36),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

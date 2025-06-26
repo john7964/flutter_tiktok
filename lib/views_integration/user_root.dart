@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:ui_kit/root_navigator.dart';
+import 'package:view_integration/main_tabs_provider.dart';
 import 'package:zuzu/bloc/authed_user.dart';
-import 'package:zuzu/views_integration/main_tabs.dart';
 import 'package:ui_kit/media_certificate/navigator_media_certificate.dart';
+
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey();
 
 class UserRoot extends StatefulWidget {
   const UserRoot({super.key, required this.userKey});
@@ -30,7 +32,7 @@ class _UserRootState extends State<UserRoot> {
               builder: (context) {
                 return NavigatorMediaCertificateScope(
                   route: ModalRoute.of(context)!,
-                  child: MainTabsViewIntegration(),
+                  child: context.read<MainTabsDelegate>().mainTabs,
                 );
               },
             );

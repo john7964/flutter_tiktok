@@ -83,7 +83,7 @@ class _FractionalGestureDetectorState extends State<FractionalGestureDetector> {
   Widget build(BuildContext context) {
     return Listener(
       onPointerDown: onPointerDown,
-      behavior: HitTestBehavior.opaque,
+      behavior: HitTestBehavior.translucent,
       child: widget.child,
     );
   }

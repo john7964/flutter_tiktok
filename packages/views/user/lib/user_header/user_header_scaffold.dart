@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -52,7 +51,24 @@ class UserHeaderScaffold extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [UserData()]),
+              Row(
+                children: [
+                  UserData(),
+                  Spacer(),
+                  FilledButton(
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStatePropertyAll(Colors.black.withAlpha(16)),
+                      foregroundColor: WidgetStatePropertyAll(Colors.black87),
+                      shape: WidgetStatePropertyAll(
+                        RoundedRectangleBorder(borderRadius: BorderRadius.circular(4.0)),
+                      ),
+                      minimumSize: WidgetStatePropertyAll(Size(20, 32)),
+                    ),
+                    onPressed: () {},
+                    child: Text("编辑主页"),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
               UserIntroduce(),
               const SizedBox(height: 24),
@@ -103,13 +119,13 @@ class UserHeaderScaffold extends StatelessWidget {
 }
 
 class UserHeaderBackground extends StatefulWidget {
+  const UserHeaderBackground({super.key});
 
   @override
   State<StatefulWidget> createState() => UserHeaderBackgroundState();
 }
 
 class UserHeaderBackgroundState extends State<UserHeaderBackground> {
-
   final AssetImage assetImage = AssetImage("assets/bg2.jpg", package: "user");
 
   @override
@@ -117,7 +133,6 @@ class UserHeaderBackgroundState extends State<UserHeaderBackground> {
     double imageAspectRatio = 16 / 10;
     return LayoutBuilder(
       builder: (context, constraints) {
-
         final double originHeight = constraints.maxWidth / imageAspectRatio;
         final bool isInfinite = constraints.maxHeight.isInfinite;
         final Widget container = Container(
@@ -142,34 +157,6 @@ class UserHeaderBackgroundState extends State<UserHeaderBackground> {
               ),
             ],
           ),
-        );
-        final Widget stack = Stack(
-          fit: StackFit.expand,
-          children: [
-            Image(image: assetImage, fit: BoxFit.fitHeight),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    Container(
-                      height: 80,
-                      width: 80,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white, width: 2),
-                        borderRadius: BorderRadius.circular(40),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(40),
-                        child: Image.asset("assets/bg1.jpg", package: "user", fit: BoxFit.cover),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
         );
 
         if (isInfinite) {

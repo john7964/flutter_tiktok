@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shorts_view/bloc/shorts_bloc.dart';
 import 'package:shorts_view/shorts_page/short_scaffold.dart';
+import 'package:ui_kit/appbar_manager.dart';
+import 'package:ui_kit/media_certificate/media_certificate.dart';
 import 'package:ui_kit/page_view.dart';
 import 'package:ui_kit/route/draggable_route.dart';
-import 'package:ui_kit/theme.dart';
-import 'package:ui_kit/media_certificate/indexed_media_certificate.dart';
+import 'package:ui_kit/theme/theme.dart';
 import 'package:provider/provider.dart';
 
 final List<String> videoSource = [
@@ -18,26 +20,75 @@ final List<String> videoSource = [
   "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
 ];
 
-class ShortsPage extends StatefulWidget {
-  const ShortsPage({super.key});
+class ShortsPages extends StatefulWidget {
+  const ShortsPages({super.key, this.appBar});
+
+  final Widget? appBar;
 
   @override
-  State<ShortsPage> createState() => _ShortsPageState();
+  State<ShortsPages> createState() => _ShortsPagesState();
 }
 
-class _ShortsPageState extends State<ShortsPage> with TickerProviderStateMixin {
-  late final PageController tabController = PageController(
-    initialPage: shorts.state.lastPlayingIndex,
-  );
+class _ShortsPagesState extends State<ShortsPages> with AppBarManager {
+  late bool showAppbar = true;
+
+  @override
+  void changeAppBar({bool? top, bool? bottom}) {
+    if (top != null && top != showAppbar) {
+      setState(() => showAppbar = top);
+    }
+    super.changeAppBar(top: top, bottom: bottom);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final Route route = MaterialPageRoute(builder: (context) {
+      return ShortsPagesView();
+    });
+
+    final Widget appBar = ValueListenableBuilder(
+      valueListenable: DraggableResizedRoute.maybeOf(context)?.animation ?? ValueNotifier(1.0),
+      builder: (context, value, child) {
+        return Offstage(offstage: value != 1.0 || !showAppbar, child: child);
+      },
+      child: UnconstrainedBox(constrainedAxis: Axis.horizontal, child: widget.appBar),
+    );
+
+    return Theme(
+      data: darkTheme,
+      child: Material(
+        type: MaterialType.transparency,
+        child: Stack(
+          alignment: Alignment.topCenter,
+          children: [Navigator(onGenerateRoute: (settings) => route), appBar],
+        ),
+      ),
+    );
+  }
+}
+
+class ShortsPagesView extends StatefulWidget {
+  const ShortsPagesView({super.key, this.appBar});
+
+  final Widget? appBar;
+
+  @override
+  State<ShortsPagesView> createState() => _ShortsPagesViewState();
+}
+
+class _ShortsPagesViewState extends State<ShortsPagesView> with MediaCertificationConsumer {
   late final ValueNotifier<int> currentPage = ValueNotifier(tabController.initialPage)
     ..addListener(handleCurrentPageChanged);
+  late PlayListBloc? parentPlayList;
+  PlayListBloc? _localPlayList;
 
-  late ShortPlayersBloc? parentShorts;
-  ShortPlayersBloc? _localShorts;
+  PlayListBloc get localPlayList => _localPlayList ??= PlayListBloc(sources: videoSource);
 
-  ShortPlayersBloc get localShorts => _localShorts ??= ShortPlayersBloc(sources: videoSource);
+  PlayListBloc get playList => parentPlayList ?? localPlayList;
 
-  ShortPlayersBloc get shorts => parentShorts ?? localShorts;
+  late final PageController tabController = PageController(
+    initialPage: playList.state.playingIndex ?? 0,
+  );
 
   bool handleScrollNotification(ScrollEndNotification notification) {
     if (notification.depth == 0) {
@@ -47,46 +98,43 @@ class _ShortsPageState extends State<ShortsPage> with TickerProviderStateMixin {
   }
 
   void handleCurrentPageChanged() {
-    shorts.add(UpdatedPlayingIndexEvent(currentPage.value));
+    playList.add(UpdatedPlayingIndexEvent(currentPage.value));
   }
 
   @override
   void didChangeDependencies() {
     try {
-      parentShorts = context.watch<ShortPlayersBloc>();
+      parentPlayList = context.watch<PlayListBloc>();
     } on ProviderNotFoundException {
-      parentShorts = null;
+      parentPlayList = null;
     }
+    playList.add(UpdateCertificationConsumer(consumer: this));
     super.didChangeDependencies();
   }
 
   @override
   Widget build(BuildContext context) {
     final SliverChildDelegate childrenDelegate = SliverChildBuilderDelegate((context, index) {
-      if (index >= shorts.state.players.length) {
+      if (index >= playList.state.players.length) {
         return null;
       }
-      final Widget child = IndexedMediaCertificateScope(
-        index: index,
-        child: VideoSkeleton(),
-      );
 
-      return BlocBuilder<ShortPlayersBloc, ShortsState>(
+      return BlocBuilder<PlayListBloc, PlayListState>(
         buildWhen: (previous, current) => previous.players[index] != current.players[index],
-        builder: (BuildContext context, ShortsState state) {
-          return BlocProvider.value(value: state.players[index], child: child);
+        builder: (BuildContext context, PlayListState state) {
+          return BlocProvider.value(value: state.players[index], child: const VideoSkeleton());
         },
       );
     });
 
-    final videos = BlocProvider.value(
-      value: shorts,
+    final Widget videos = BlocProvider.value(
+      value: playList,
       child: ColoredBox(
         color: Colors.black,
         child: NotificationListener<ScrollEndNotification>(
           onNotification: handleScrollNotification,
-          child: IndexedMediaCertificateDispatcher(
-            controller: currentPage,
+          child: AnnotatedRegion<SystemUiOverlayStyle>(
+            value: SystemUiOverlayStyle.light,
             child: PageView2.custom(
               pageSnapping: false,
               physics: const PageFixedDurationScrollPhysics(parent: BouncingScrollPhysics()),
@@ -100,26 +148,31 @@ class _ShortsPageState extends State<ShortsPage> with TickerProviderStateMixin {
       ),
     );
 
-    return Theme(
-      data: darkTheme,
-      child: Material(
-        type: MaterialType.transparency,
-        child: ValueListenableBuilder(
-          valueListenable: DraggableResizedRoute.maybeOf(context)?.fraction ?? ValueNotifier(1.0),
-          builder: (context, value, child) {
-            final double bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
-            final EdgeInsets padding = EdgeInsets.only(bottom: bottomPadding * value);
-            return Padding(padding: padding, child: videos);
-          },
-        ),
-      ),
-    );
+    return LayoutBuilder(builder: (context, constrains) {
+      return ValueListenableBuilder(
+        valueListenable: DraggableResizedRoute.maybeOf(context)?.animation ?? ValueNotifier(1.0),
+        builder: (context, value, child) {
+          final double bottomPadding = MediaQuery.viewPaddingOf(context).bottom * value;
+          return Column(
+            children: [
+              SizedBox(
+                height: constrains.maxHeight - bottomPadding,
+                child: videos,
+              ),
+              Expanded(
+                child: Offstage(offstage: value != 1.0, child: Container(color: Colors.black)),
+              )
+            ],
+          );
+        },
+      );
+    });
   }
 
   @override
   void dispose() {
     tabController.dispose();
-    _localShorts?.close();
+    _localPlayList?.close();
     super.dispose();
   }
 }

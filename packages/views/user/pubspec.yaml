@@ -12,6 +12,8 @@ dependencies:
     sdk: flutter
   ui_kit:
     path: ../../ui_kit
+  view_integration:
+    path: ../../view_integration
   animations: ^2.0.11
 
 dev_dependencies:

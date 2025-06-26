@@ -3,13 +3,13 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shorts_view/comments/comments_sliver_list.dart';
 import 'package:ui_kit/animated_off_stage.dart';
-import 'package:ui_kit/theme.dart';
+import 'package:ui_kit/theme/theme.dart';
 
 class VideoCommentsList extends StatefulWidget {
-  const VideoCommentsList({super.key, this.physics, required this.expandAnimation});
+  const VideoCommentsList({super.key, this.physics});
 
   final ScrollPhysics? physics;
-  final AnimationController expandAnimation;
+  // final AnimationController expandAnimation;
 
   @override
   State<VideoCommentsList> createState() => _VideoCommentsListState();
@@ -23,14 +23,6 @@ class _VideoCommentsListState extends State<VideoCommentsList> {
   late ScrollController controller;
   final ValueNotifier<GlobalKey?> selectedItem = ValueNotifier(null);
   final List<GlobalKey> keys = comments.map((item) => GlobalKey()).toList();
-
-  void handleCommentsExpand() {
-    if (widget.expandAnimation.isForwardOrCompleted) {
-      widget.expandAnimation.reverse();
-    } else {
-      widget.expandAnimation.forward();
-    }
-  }
 
   void handleCommentTap(GlobalKey key) => selectedItem.value = key;
 
@@ -52,10 +44,10 @@ class _VideoCommentsListState extends State<VideoCommentsList> {
               style: TextTheme.of(context).titleSmall?.copyWith(fontSize: 13),
             ),
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: IconButton(onPressed: handleCommentsExpand, icon: Icon(Icons.fullscreen)),
-          )
+          // Align(
+          //   alignment: Alignment.centerRight,
+          //   child: IconButton(onPressed: handleCommentsExpand, icon: Icon(Icons.fullscreen)),
+          // )
         ],
       );
     });

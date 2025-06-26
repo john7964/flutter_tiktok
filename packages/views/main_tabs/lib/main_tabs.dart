@@ -1,54 +1,38 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:main_tabs_view/home_tabs.dart';
+import 'package:provider/provider.dart';
 import 'package:ui_kit/appbar_manager.dart';
 import 'package:ui_kit/media_certificate/indexed_media_certificate.dart';
+import 'package:view_integration/main_tabs_provider.dart';
+import 'package:view_integration/message_provider.dart';
+import 'package:view_integration/user_provider.dart';
 
-/// A Calculator.
-class Calculator {
-  /// Returns [value] plus 1.
-  int addOne(int value) => value + 1;
+const MainTabsDelegate mainTabsDelegate = MainTabsImpl();
+
+class MainTabsImpl extends MainTabsDelegate {
+  const MainTabsImpl();
+
+  @override
+  final Widget mainTabs = const MainTabsView();
 }
 
 class MainTabsView extends StatefulWidget {
-  const MainTabsView({
-    super.key,
-    required this.mall,
-    required this.message,
-    required this.me,
-    required this.onPressCreate,
-    required this.recommendedShorts,
-    required this.friendShorts,
-    required this.subscribedShorts,
-    required this.onPressSearch,
-  });
-
-  final Widget mall;
-  final Widget message;
-  final Widget me;
-  final Widget recommendedShorts;
-  final Widget friendShorts;
-  final Widget subscribedShorts;
-  final FutureOr<void> Function() onPressCreate;
-  final VoidCallback onPressSearch;
+  const MainTabsView({super.key});
 
   @override
   State<MainTabsView> createState() => _MainTabsViewState();
 }
 
-class _MainTabsViewState<T extends StatefulWidget> extends State<MainTabsView> with AppBarManager {
+class _MainTabsViewState extends State<MainTabsView> with AppBarManager {
   final ValueNotifier<int> index = ValueNotifier(0);
-  double barHeight = 46.5;
-  bool showBottomBar = true;
+  double barHeight = 70;
+  ValueNotifier<bool> showBottomBar = ValueNotifier(true);
 
   @override
   void changeAppBar({bool? top, bool? bottom}) {
-    if (bottom != null && bottom != showBottomBar) {
-      setState(() {
-        showBottomBar = bottom;
-      });
+    if (bottom != null) {
+      showBottomBar.value = bottom;
     }
     super.changeAppBar(top: top, bottom: bottom);
   }
@@ -64,25 +48,17 @@ class _MainTabsViewState<T extends StatefulWidget> extends State<MainTabsView> w
   @override
   Widget build(BuildContext context) {
     MediaQueryData media = MediaQuery.of(context);
-    final EdgeInsets viewPadding = EdgeInsets.only(bottom: barHeight);
-    media = media.copyWith(viewPadding: media.viewPadding.add(viewPadding) as EdgeInsets);
+    media = media.copyWith(viewPadding: media.viewPadding.copyWith(bottom: barHeight));
 
-    final Widget home = IndexedMediaCertificateScope(
-      index: 0,
-      child: HomeView<T>(
-        friendShorts: widget.friendShorts,
-        recommendedShorts: widget.recommendedShorts,
-        subscribedShorts: widget.subscribedShorts,
-        onPressSearch: widget.onPressSearch,
-      ),
-    );
-
+    final Widget home = IndexedMediaCertificateScope(index: 0, child: const HomeView());
+    final Widget userHome = context.read<UserDelegate>().userHome;
     final Widget bottom = ValueListenableBuilder(
       valueListenable: index,
       builder: (context, value, child) {
         return BottomBar(index: value, onIndexChange: handleIndexChange);
       },
     );
+    final Widget message = context.read<MessageDelegate>().messageMain();
     final Widget stack = IndexedMediaCertificateDispatcher(
       controller: index,
       child: ValueListenableBuilder(
@@ -92,12 +68,12 @@ class _MainTabsViewState<T extends StatefulWidget> extends State<MainTabsView> w
             index: value,
             children: [
               IndexedMediaCertificateScope(index: 0, child: home),
-              IndexedMediaCertificateScope(index: 1, child: widget.mall),
-              IndexedMediaCertificateScope(index: 2, child: widget.message),
-              IndexedMediaCertificateScope(index: 3, child: widget.me),
+              IndexedMediaCertificateScope(index: 1, child: userHome),
+              IndexedMediaCertificateScope(index: 2, child: message),
+              IndexedMediaCertificateScope(index: 3, child: userHome),
             ],
           );
-        }
+        },
       ),
     );
     return Theme(
@@ -114,8 +90,13 @@ class _MainTabsViewState<T extends StatefulWidget> extends State<MainTabsView> w
             return Stack(
               alignment: Alignment.bottomLeft,
               children: [
-                Offstage(offstage: orientation == Orientation.landscape, child: bottom),
-                if (showBottomBar) MediaQuery(data: media, child: stack),
+                MediaQuery(data: media, child: stack),
+                ValueListenableBuilder(
+                  valueListenable: showBottomBar,
+                  builder: (context, value, child) {
+                    return Offstage(offstage: !value, child: bottom);
+                  },
+                ),
               ],
             );
           },
@@ -137,36 +118,57 @@ class BottomBar extends StatelessWidget {
     final bool isHome = index == 0;
     final Color foregroundColor = isHome ? Colors.white : Colors.black;
     final Color unSelectedColor = foregroundColor.withAlpha(180);
-    final Color backgroundColor = isHome ? Colors.black87 : Colors.white;
+    final Color backgroundColor = isHome ? Color(0xFF181818) : Colors.white;
     final TextStyle textStyle = TextStyle(fontWeight: FontWeight.bold, fontSize: 16);
-    return Container(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewPadding.bottom),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        border: Border(top: BorderSide(color: Colors.black12, width: 0.5)),
-      ),
-      child: SizedBox(
-        height: 46,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: List.generate(titles.length, (index) {
-            final color = WidgetStatePropertyAll<Color>(
-              this.index == index ? foregroundColor : unSelectedColor,
-            );
-            return Expanded(
-              child: TextButton(
-                onPressed: () => onIndexChange(index),
-                style: ButtonStyle(
-                  animationDuration: Duration.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  foregroundColor: color,
-                  overlayColor: WidgetStatePropertyAll(Colors.transparent),
-                  textStyle: WidgetStatePropertyAll(textStyle),
-                ),
-                child: Text(titles[index]),
+    final List<Widget> buttons = List.generate(titles.length, (index) {
+      final color = WidgetStatePropertyAll<Color>(
+        this.index == index ? foregroundColor : unSelectedColor,
+      );
+      return Expanded(
+        child: TextButton(
+          onPressed: () => onIndexChange(index),
+          style: ButtonStyle(foregroundColor: color),
+          child: Text(titles[index]),
+        ),
+      );
+    }, growable: true);
+
+    buttons.insert(
+      2,
+      Expanded(child: Center(child: IconButton(onPressed: () {}, icon: Icon(Icons.add_rounded)))),
+    );
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(),
+      child: Theme(
+        data: ThemeData(
+          textButtonTheme: TextButtonThemeData(
+            style: ButtonStyle(
+              animationDuration: Duration.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              overlayColor: WidgetStatePropertyAll(Colors.transparent),
+              textStyle: WidgetStatePropertyAll(textStyle),
+            ),
+          ),
+          iconButtonTheme: IconButtonThemeData(
+            style: ButtonStyle(
+              animationDuration: Duration.zero,
+              padding: WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 6, vertical: 3)),
+              foregroundColor: WidgetStatePropertyAll(foregroundColor),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              side: WidgetStatePropertyAll(BorderSide(color: foregroundColor, width: 2.5)),
+              shape: WidgetStatePropertyAll(
+                RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(8.0))),
               ),
-            );
-          }),
+              iconSize: WidgetStatePropertyAll(22.0),
+              minimumSize: WidgetStatePropertyAll(Size(20, 20)),
+            ),
+          ),
+        ),
+        child: Container(
+          color: backgroundColor,
+          height: 70,
+          padding: EdgeInsets.only(top: 4, bottom: 24),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: buttons),
         ),
       ),
     );

@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shorts_view/bloc/video_player_bloc.dart';
 import 'package:shorts_view/shorts_page/video_indicator.dart';
 import 'package:ui_kit/animated_off_stage.dart';
+import 'package:view_integration/user_provider.dart';
 
 const Duration _duration = Duration(milliseconds: 100);
 
@@ -24,7 +25,7 @@ class VideoForeground extends StatefulWidget {
 
 class _VideoForegroundState extends State<VideoForeground> {
   void handleTapVideo() {
-    final bloc = context.read<ShortBloc>();
+    final bloc = context.read<VideoPlayerBloc>();
     bloc.add(VideoPauseEvent(pause: !bloc.state.isPaused));
   }
 
@@ -45,7 +46,6 @@ class _VideoForegroundState extends State<VideoForeground> {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: handleTapVideo,
       child: Stack(
         children: [
           Align(
@@ -66,13 +66,13 @@ class _VideoForegroundState extends State<VideoForeground> {
             alignment: Alignment.bottomCenter,
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 12.0),
-              child: BlocBuilder<ShortBloc, VideoPlayerState>(
+              child: BlocBuilder<VideoPlayerBloc, VideoPlayerState>(
                 builder: (context, state) => VideoIndicator(playerState: state),
               ),
             ),
           ),
           Align(
-            child: BlocBuilder<ShortBloc, VideoPlayerState>(
+            child: BlocBuilder<VideoPlayerBloc, VideoPlayerState>(
               builder: (context, state) => PlayButton(isPause: state.isPaused),
             ),
           )
@@ -131,8 +131,28 @@ class VideoRightBar extends StatelessWidget {
         child: UnconstrainedBox(
           child: Wrap(
             direction: Axis.vertical,
+            crossAxisAlignment: WrapCrossAlignment.center,
             spacing: 24,
             children: [
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context, rootNavigator: true).push(
+                    MaterialPageRoute(
+                      builder: (context) {
+                        return context.read<UserDelegate>().userHome;
+                      },
+                    ),
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(22),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(color: Colors.amber),
+                  ),
+                ),
+              ),
               Column(
                 children: [Icon(CupertinoIcons.heart_fill), SizedBox(height: 4), Text("222.9K")],
               ),

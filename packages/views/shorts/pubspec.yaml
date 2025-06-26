@@ -1,7 +1,7 @@
 name: shorts_view
 description: "A new Flutter project."
 version: 0.0.1
-homepage:
+publish_to: none
 
 environment:
   sdk: ">=3.0.0"
@@ -12,13 +12,13 @@ dependencies:
     sdk: flutter
   flutter_bloc: ^9.1.0
   bloc: ^9.0.0
-  uuid: ^4.5.1
-  unicode_emojis: ^0.4.0
-
   cupertino_icons: ^1.0.8
   ui_kit:
     path: ../../ui_kit
+  view_integration:
+    path: ../../view_integration
   video_player: 2.9.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ui_kit/typography.dart';
+import 'package:ui_kit/theme/typography.dart';
 
 final ThemeData lightTheme = ThemeData(
   brightness: Brightness.light,
@@ -9,8 +9,12 @@ final ThemeData lightTheme = ThemeData(
     englishLike: englishLike,
     dense: dense,
   ),
-  bottomNavigationBarTheme: BottomNavigationBarThemeData(
-      backgroundColor: Colors.amber
+  bottomNavigationBarTheme: BottomNavigationBarThemeData(backgroundColor: Colors.amber),
+  scaffoldBackgroundColor: Colors.white,
+  appBarTheme: AppBarTheme(
+    backgroundColor: Colors.white,
+    toolbarHeight: 40,
+    scrolledUnderElevation: 0.0,
   ),
 );
 
@@ -22,7 +26,5 @@ final ThemeData darkTheme = ThemeData(
     englishLike: englishLike,
     dense: dense,
   ),
-  bottomNavigationBarTheme: BottomNavigationBarThemeData(
-    backgroundColor: Colors.amber
-  ),
+  bottomNavigationBarTheme: BottomNavigationBarThemeData(backgroundColor: Colors.amber),
 );

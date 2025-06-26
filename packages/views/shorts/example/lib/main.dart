@@ -66,7 +66,7 @@ class _RootState extends State<Root> {
             builder: (context) {
               return NavigatorMediaCertificateScope(
                 route: ModalRoute.of(context)!,
-                child: SearchResult(),
+                child: SearchList(),
               );
             },
           );

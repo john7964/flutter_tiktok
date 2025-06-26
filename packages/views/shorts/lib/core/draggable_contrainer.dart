@@ -26,8 +26,6 @@ class _DraggableBoxState extends State<DraggableBox> with SingleTickerProviderSt
     return renderBox?.size.height ?? 0.0;
   }
 
-  bool get _dismissUnderway => controller.status == AnimationStatus.reverse;
-
   Set<WidgetState> dragHandleStates = <WidgetState>{};
 
   void _handleDragStart(DragStartDetails details) {
@@ -80,18 +78,15 @@ class _DraggableBoxState extends State<DraggableBox> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragStart: _handleDragStart,
-        onHorizontalDragUpdate: _handleDragUpdate,
-        onHorizontalDragEnd: (details) => _handleDragEnd(details, Axis.horizontal),
-        onVerticalDragStart: _handleDragStart,
-        onVerticalDragUpdate: _handleDragUpdate,
-        onVerticalDragEnd: (details) => _handleDragEnd(details, Axis.vertical),
-        child: KeyedSubtree(key: _childKey, child: widget.child),
-      ),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragStart: _handleDragStart,
+      onHorizontalDragUpdate: _handleDragUpdate,
+      onHorizontalDragEnd: (details) => _handleDragEnd(details, Axis.horizontal),
+      onVerticalDragStart: _handleDragStart,
+      onVerticalDragUpdate: _handleDragUpdate,
+      onVerticalDragEnd: (details) => _handleDragEnd(details, Axis.vertical),
+      child: KeyedSubtree(key: _childKey, child: widget.child),
     );
   }
 

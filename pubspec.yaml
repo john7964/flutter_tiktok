@@ -38,8 +38,12 @@ dependencies:
     path: ./packages/widget_state
   ui_kit:
     path: ./packages/ui_kit
+  view_integration:
+    path: ./packages/view_integration
+  provider: ^6.1.5
 
-#view
+
+  #view
   login_view:
     path: ./packages/views/login
   main_tabs_view:

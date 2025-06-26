@@ -7,14 +7,12 @@ class CertificateDispatchNavigatorObserver extends NavigatorObserver with Change
   @override
   void didPush(Route route, Route? previousRoute) {
     currentRoute = route;
-    print(currentRoute);
     notifyListeners();
   }
 
   @override
   void didPop(Route route, Route? previousRoute) {
     currentRoute = previousRoute;
-    print(currentRoute);
     notifyListeners();
   }
 }
@@ -46,11 +44,6 @@ class _NavigatorMediaCertificateDispatcherState extends State<NavigatorMediaCert
       _observer!.addListener(markCertificateDirty);
       markCertificateDirty();
     }
-  }
-
-  @override
-  void markCertificateDirty() {
-    super.markCertificateDirty();
   }
 
   @override

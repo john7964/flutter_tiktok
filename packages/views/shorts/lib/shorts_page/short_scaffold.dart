@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:ui_kit/animated_off_stage.dart';
 import 'package:ui_kit/appbar_manager.dart';
 import 'package:ui_kit/route/draggable_route.dart';
+import 'package:ui_kit/route/draggable_scrollable_route.dart';
 
+import '../comments/comments_bottom_sheet.dart';
 import 'short_foreground.dart';
 import '../core/video_aspect_ratio.dart';
 
@@ -24,38 +26,32 @@ class _VideoSkeletonState extends State<VideoSkeleton>
   bool wantKeepAlive = true;
   final FocusScopeNode focusScopeNode = FocusScopeNode();
   late final StreamController<double> dragStreamController;
-  late ValueNotifier<double>? resizingFraction;
+  late Animation<double>? resizingFraction;
 
-  // late final DraggableScrollableController commentsController;
   late final DraggableScrollableController relativesController;
   double foregroundOpacity = 1.0;
 
   void toggleImmersiveMode(bool immersive) {
-    AppBarManager.maybeOf(context)?.changeAppBar(top: !immersive);
-  }
-
-  void handleScroll([AnimationStatus? status]) {
-    // if (commentsController.size == 0.0) {
-    //   toggleImmersiveMode(false);
-    // }
+    AppBarManager.maybeOf(context)?.changeAppBar(top: !immersive, bottom: !immersive);
   }
 
   void handleShowComment() async {
     toggleImmersiveMode(true);
-    // await commentsController.animateTo(1.0, duration: _duration, curve: Curves.easeIn);
+    final ModalRoute route = DraggableScrollableRoute(
+      onDispose: () => toggleImmersiveMode(false),
+      builder: (context) => CommentsSheet(),
+    );
+    Navigator.of(context).push(route);
   }
 
   void handleDismissed() async {
     toggleImmersiveMode(false);
     FocusScope.of(context, createDependency: false).unfocus();
-    await Future.wait([
-      // commentsController.animateToeTo(0.0, duration: _duration, curve: Curves.easeOut),
-    ]);
   }
 
   @override
   void didChangeDependencies() {
-    resizingFraction = DraggableResizedRoute.maybeOf(context)?.fraction;
+    resizingFraction = DraggableResizedRoute.maybeOf(context)?.animation;
     super.didChangeDependencies();
   }
 
@@ -76,13 +72,8 @@ class _VideoSkeletonState extends State<VideoSkeleton>
         ),
       );
 
-      // final Widget drag = Padding(
-      //   padding: EdgeInsets.symmetric(horizontal: 12.0),
-      //   child: DraggableIndicator(onChange: handleDragUpdate),
-      // );
-
       final Widget tools = ValueListenableBuilder(
-        valueListenable: DraggableResizedRoute.maybeOf(context)?.fraction ?? ValueNotifier(1.0),
+        valueListenable: DraggableResizedRoute.maybeOf(context)?.animation ?? ValueNotifier(1.0),
         builder: (context, value, child) => Offstage(offstage: value != 1.0, child: child),
         child: OverflowBox(
           maxHeight: maxVideoHeight,

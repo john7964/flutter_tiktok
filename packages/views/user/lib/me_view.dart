@@ -1,8 +1,8 @@
 import 'package:animations/animations.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:ui_kit/theme.dart';
+import 'package:ui_kit/theme/theme.dart';
 import 'package:user/user_header/user_header_scaffold.dart';
+import 'package:view_integration/user_provider.dart';
 
 import 'nest_scroll_view/nested_scroll_view.dart';
 
@@ -12,9 +12,23 @@ class Calculator {
   int addOne(int value) => value + 1;
 }
 
-class MeView extends StatelessWidget {
-  MeView({super.key});
+const UserDelegate userDelegate = UserDelegateImpl();
 
+class UserDelegateImpl extends UserDelegate {
+  const UserDelegateImpl();
+
+  @override
+  final Widget userHome = const UserHome();
+}
+
+class UserHome extends StatefulWidget {
+  const UserHome({super.key});
+
+  @override
+  State<UserHome> createState() => _UserHomeState();
+}
+
+class _UserHomeState extends State<UserHome> {
   final PageStorageKey pageStorageKey = PageStorageKey("1");
 
   @override
@@ -23,11 +37,7 @@ class MeView extends StatelessWidget {
       length: 5,
       child: NestedScrollViewPlus(
         physics: BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-        headerSliverBuilder:
-            (context, scrolled) => [
-              SliverUserHeader(),
-              // PinnedHeaderSliver()
-            ],
+        headerSliverBuilder: (context, scrolled) => [SliverUserHeader()],
         body: Builder(
           builder: (context) {
             return TabBarView(
@@ -36,9 +46,6 @@ class MeView extends StatelessWidget {
                   key: pageStorageKey,
                   physics: BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                   slivers: [
-                    // PinnedHeaderSliver(child: Container(
-                    //     height: 200,
-                    //     color: Colors.green, child: Text("2"))),
                     SliverGrid(
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 3,
@@ -61,7 +68,7 @@ class MeView extends StatelessWidget {
                                   alignment: Alignment.center,
                                   child: Text("$index"),
                                 );
-                              }
+                              },
                             );
                           },
                           openBuilder: (context, action) {
@@ -145,10 +152,7 @@ class MeView extends StatelessWidget {
 
     return Theme(
       data: lightTheme,
-      child: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewPaddingOf(context).bottom),
-        child: Material(color: Colors.white, child: child),
-      ),
+      child: Material(color: Colors.white, child: child),
     );
   }
 }

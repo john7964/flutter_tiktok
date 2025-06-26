@@ -1,7 +1,7 @@
 name: message_view
 description: "A new Flutter project."
 version: 0.0.1
-homepage:
+publish_to: none
 
 environment:
   sdk: ^3.7.2
@@ -10,6 +10,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  view_integration:
+    path: ../../view_integration
+  ui_kit:
+    path: ../../ui_kit
 
 dev_dependencies:
   flutter_test:

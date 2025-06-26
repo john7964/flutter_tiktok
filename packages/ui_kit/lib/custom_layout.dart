@@ -85,6 +85,7 @@ class RenderSizedOverFlowBoxBuilder extends RenderAligningShiftedBox {
       return;
     }
     _delegate = newDelegate;
+    markNeedsLayout();
   }
 
   @override

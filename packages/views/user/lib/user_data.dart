@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class UserData extends StatelessWidget {
   const UserData({super.key});
@@ -8,7 +9,7 @@ class UserData extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 24,
+      spacing: 32,
       children: [
         DataItem(data: "19", label: "获赞"),
         DataItem(data: "9", label: "互关"),
@@ -123,7 +124,10 @@ class UserTitle extends StatelessWidget {
           ),
         );
 
-        return top;
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: scale == 0.0 ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
+          child: top,
+        );
       },
     );
   }

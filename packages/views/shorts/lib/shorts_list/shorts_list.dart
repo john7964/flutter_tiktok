@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shorts_view/bloc/shorts_bloc.dart';
 import 'package:shorts_view/core/video_aspect_ratio.dart';
-import 'package:shorts_view/shorts_page/shorts_page.dart';
+import 'package:shorts_view/search/search_pages.dart';
+import 'package:ui_kit/media_certificate/media_certificate.dart';
 import 'package:ui_kit/media_certificate/navigator_media_certificate.dart';
-import 'package:ui_kit/media_certificate/scroll_media_certificate.dart';
 import 'package:ui_kit/route/draggable_route.dart';
 
 final List<String> videoSource = [
@@ -25,31 +25,59 @@ class ShortsList extends StatefulWidget {
   State<ShortsList> createState() => _ShortsListState();
 }
 
-class _ShortsListState extends State<ShortsList> with AutomaticKeepAliveClientMixin {
-  final ShortPlayersBloc shortsBloc = ShortPlayersBloc(sources: videoSource);
+class _ShortsListState extends State<ShortsList>
+    with AutomaticKeepAliveClientMixin, MediaCertificationConsumer {
+  final PlayListBloc playList = PlayListBloc(sources: videoSource);
   final List<GlobalKey<ResizedRouteTarget>> videoTargetKeys =
       videoSource.map((_) => GlobalKey<ResizedRouteTarget>()).toList();
-  GlobalKey<ResizedRouteTarget>? currentKey;
+
+  GlobalKey<ResizedRouteTarget>? get currentKey => videoTargetKeys[playList.state.playingIndex!];
 
   void handleTapVideoItem(int index) {
-    currentKey = videoTargetKeys[index];
-    shortsBloc.add(UpdatedPlayingIndexEvent(index));
+    playList.add(UpdatedPlayingIndexEvent(index));
     final Route route = DraggableResizedRoute(
       getTarget: () => currentKey!.currentState!,
       builder: (context) => NavigatorMediaCertificateScope(
         route: ModalRoute.of(context)!,
-        child: BlocProvider.value(value: shortsBloc, child: ShortsPage()),
+        child: BlocProvider.value(value: playList, child: SearchPages()),
       ),
     );
     Navigator.of(context).push(route);
   }
 
+  bool handleScrollUpdateNotification(ScrollUpdateNotification notification) {
+    if (!(ModalRoute.isCurrentOf(context) ?? true) || notification.depth != 0) {
+      return false;
+    }
+
+    RenderBox scrollRenderBox = notification.context!.findRenderObject()! as RenderBox;
+    for (int index = 0; index < videoTargetKeys.length; index++) {
+      final GlobalKey key = videoTargetKeys[index];
+      if (key.currentContext?.findRenderObject() != null) {
+        final RenderBox renderBox = key.currentContext!.findRenderObject() as RenderBox;
+        final Offset offset = renderBox.localToGlobal(Offset.zero, ancestor: scrollRenderBox);
+        if (offset.dy >= 0.0 && offset.dy < scrollRenderBox.size.height) {
+          playList.add(UpdatedPlayingIndexEvent(index));
+          return false;
+        }
+      }
+    }
+
+    playList.add(UpdatedPlayingIndexEvent(null));
+    return false;
+  }
+
+  @override
+  void didChangeDependencies() {
+    playList.add(UpdateCertificationConsumer(consumer: this));
+    super.didChangeDependencies();
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
-
     final SliverChildDelegate childrenDelegate = SliverChildBuilderDelegate((context, index) {
-      if (index >= shortsBloc.state.players.length) {
+      if (index >= playList.state.players.length) {
         return null;
       }
 
@@ -58,29 +86,29 @@ class _ShortsListState extends State<ShortsList> with AutomaticKeepAliveClientMi
         child: ShortListItem(videoTargetKey: videoTargetKeys[index]),
       );
 
-      return ScrollableMediaCertificateScope(
-        sequence: index,
-        child: BlocBuilder<ShortPlayersBloc, ShortsState>(
-          buildWhen: (previous, current) => previous.players[index] != current.players[index],
-          builder: (BuildContext context, ShortsState state) {
-            return BlocProvider.value(value: state.players[index], child: child);
-          },
-        ),
+      return BlocBuilder<PlayListBloc, PlayListState>(
+        buildWhen: (previous, current) => previous.players[index] != current.players[index],
+        builder: (BuildContext context, PlayListState state) {
+          return BlocProvider.value(value: state.players[index], child: child);
+        },
       );
     });
 
     final Widget body = BlocProvider.value(
-      value: shortsBloc,
-      child: CustomScrollView(
-        slivers: [
-          SliverOverlapInjector(
-            handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-          ),
-          SliverSafeArea(sliver: SliverList(delegate: childrenDelegate)),
-        ],
+      value: playList,
+      child: NotificationListener<ScrollUpdateNotification>(
+        onNotification: handleScrollUpdateNotification,
+        child: CustomScrollView(
+          slivers: [
+            SliverOverlapInjector(
+              handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
+            ),
+            SliverSafeArea(sliver: SliverList(delegate: childrenDelegate)),
+          ],
+        ),
       ),
     );
-    return ScrolledMediaCertificationDispatcher(child: body);
+    return body;
   }
 
   @override
@@ -88,7 +116,7 @@ class _ShortsListState extends State<ShortsList> with AutomaticKeepAliveClientMi
 
   @override
   void dispose() {
-    shortsBloc.close();
+    playList.close();
     super.dispose();
   }
 }
@@ -180,10 +208,21 @@ class _VideoFractionalTargetState extends State<VideoFractionalTarget> with Resi
   double opacity = 1.0;
 
   @override
-  void didChangedFraction(double fraction) {
+  void didStartFraction() {
     setState(() {
-      opacity = fraction == 0.0 ? 1.0 : 0.0;
+      opacity = 0.0;
     });
+  }
+
+  @override
+  void didUpdateFraction(double fraction) {
+    super.didUpdateFraction(fraction);
+    final double opacity = fraction == 0.0 ? 1.0 : 0.0;
+    if (opacity != this.opacity) {
+      setState(() {
+        this.opacity = opacity;
+      });
+    }
   }
 
   @override
